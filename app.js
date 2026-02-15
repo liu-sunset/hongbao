@@ -24,13 +24,26 @@ const Utils = {
             return v.toString(16);
         });
     },
-    toast(msg, duration = 2000) {
+    toast(msg, duration = 2000, icon = '') {
         const el = document.getElementById('toast');
         if (el) {
-            el.textContent = msg;
+            el.innerHTML = `${icon ? `<span class="toast-icon">${icon}</span>` : ''}${msg}`;
             el.classList.add('show');
             setTimeout(() => el.classList.remove('show'), duration);
         }
+    },
+    alert(msg, title = '提示') {
+        const overlay = document.getElementById('alertOverlay');
+        const titleEl = overlay.querySelector('.alert-title');
+        const msgEl = document.getElementById('alertMessage');
+        
+        if (titleEl) titleEl.textContent = title;
+        if (msgEl) msgEl.textContent = msg;
+        if (overlay) overlay.classList.add('active');
+    },
+    closeAlert() {
+        const overlay = document.getElementById('alertOverlay');
+        if (overlay) overlay.classList.remove('active');
     },
     getLocalStorage(key, defaultVal = null) {
         try {
@@ -194,14 +207,14 @@ const App = {
         if (listEl) {
             listEl.innerHTML = '';
             if (Store.user.joinedGroups.length === 0) {
-                listEl.innerHTML = '<div style="text-align:center;color:#666;padding:20px;">暂未加入任何分组</div>';
+                listEl.innerHTML = '<div class="empty-state">暂未加入任何分组</div>';
             } else {
                 Store.user.joinedGroups.forEach(g => {
                     const item = document.createElement('div');
                     item.className = 'group-item';
                     item.innerHTML = `
                         <span>分组 <span class="group-code">${g.code}</span></span>
-                        <span style="font-size:12px;color:#888;">点击进入 ></span>
+                        <span class="hint-text">点击进入 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></span>
                     `;
                     item.onclick = () => window.location.hash = `#group?id=${g.id}`;
                     listEl.appendChild(item);
@@ -222,20 +235,20 @@ const App = {
         try {
             const { data, error } = await API.createGroup(Store.user.id, name);
             if (error || !data.success) {
-                alert(error?.message || data?.message || '创建失败');
+                Utils.alert(error?.message || data?.message || '创建失败');
             } else {
                 const groupInfo = data.data; // {id, code}
                 // 更新本地存储
                 this.addToMyGroups({ id: groupInfo.id, code: groupInfo.code });
-                Utils.toast('创建成功');
+                Utils.toast('创建成功', 2000, '🎉');
                 window.location.hash = `#group?id=${groupInfo.id}`;
             }
         } catch (e) {
             console.error(e);
-            alert('网络错误');
+            Utils.alert('网络错误');
         } finally {
             btn.disabled = false;
-            btn.textContent = '创建分组';
+            btn.textContent = '立即创建';
         }
     },
 
@@ -247,8 +260,8 @@ const App = {
         const code = document.getElementById('inputJoinCode').value.trim();
         const name = document.getElementById('inputJoinName').value.trim();
         
-        if (!code || code.length !== 6) return Utils.toast('请输入6位分组号');
-        if (!name) return Utils.toast('请输入昵称');
+        if (!code || code.length !== 6) return Utils.toast('请输入6位分组号', 2000, '⚠️');
+        if (!name) return Utils.toast('请输入昵称', 2000, '⚠️');
 
         const btn = document.getElementById('btnJoinConfirm');
         btn.disabled = true;
@@ -257,7 +270,7 @@ const App = {
         try {
             const { data, error } = await API.joinGroup(code, Store.user.id, name);
             if (error || !data.success) {
-                alert(error?.message || data?.message || '加入失败');
+                Utils.alert(error?.message || data?.message || '加入失败');
             } else {
                 const groupInfo = data.data; // {id}
                 this.addToMyGroups({ id: groupInfo.id, code: code });
@@ -266,7 +279,7 @@ const App = {
             }
         } catch (e) {
             console.error(e);
-            alert('网络错误');
+            Utils.alert('网络错误');
         } finally {
             btn.disabled = false;
             btn.textContent = '加入';
@@ -288,14 +301,14 @@ const App = {
         
         // 清空旧状态
         document.getElementById('groupCodeDisplay').textContent = '加载中...';
-        document.getElementById('packetArea').innerHTML = '<div style="text-align:center;padding:20px;">加载中...</div>';
+        document.getElementById('packetArea').innerHTML = '<div class="loading-state">加载中...</div>';
         document.getElementById('membersList').innerHTML = '';
         
         // 加载数据
         const { data, error } = await API.getGroupDetails(groupId);
         
         if (error || !data.group) {
-            alert('分组不存在或已删除');
+            Utils.alert('分组不存在或已删除');
             window.location.hash = '#home';
             return;
         }
@@ -309,7 +322,7 @@ const App = {
         // 订阅更新
         API.subscribeGroup(groupId, async (type) => {
             if (type === 'group_deleted') {
-                alert('该分组已被解散');
+                Utils.alert('该分组已被解散');
                 // 移除本地记录
                 Store.user.joinedGroups = Store.user.joinedGroups.filter(g => g.id !== groupId);
                 Utils.setLocalStorage('joined_groups', Store.user.joinedGroups);
@@ -352,9 +365,9 @@ const App = {
                 <span class="member-name">
                     ${m.username} 
                     ${isOwner ? '<span class="badge-owner">群主</span>' : ''}
-                    ${isMe ? '<span style="color:#aaa;font-size:12px;">(我)</span>' : ''}
+                    ${isMe ? '<span class="badge-me">(我)</span>' : ''}
                 </span>
-                <span style="color:#666;font-size:12px;">${new Date(m.joined_at).toLocaleTimeString()} 加入</span>
+                <span class="join-time">${new Date(m.joined_at).toLocaleTimeString()} 加入</span>
             `;
             listEl.appendChild(item);
         });
@@ -364,40 +377,33 @@ const App = {
         if (!packet) {
             packetArea.innerHTML = `
                 <div class="packet-card empty">
-                    <div style="font-size:40px;margin-bottom:10px;">🧧</div>
-                    <div style="color:#888;">暂无红包</div>
-                    <div style="font-size:12px;color:#555;margin-top:5px;">等待土豪发红包...</div>
+                    <div class="packet-icon">🧧</div>
+                    <div class="subtitle">暂无红包</div>
+                    <div class="packet-sub">等待土豪发红包...</div>
                 </div>
             `;
         } else {
-            // 检查我是否抢过 (这需要查询 packet_records，或者简单点，既然我们没拉取 records，
-            // 我们可以在 grab 时判断。但 UI 上最好显示状态。
-            // 为了性能，我们可以在 getGroupDetails 里顺便拉取当前用户的 record?
-            // 或者：用户点击抢的时候再判断。
-            // 优化：getGroupDetails 应该 check if I grabbed it.
-            // 这里为了简化，我们仅显示“抢”按钮。如果抢过了，API 会报错。
-            // 但为了体验，我们可以在本地存一个 map: packet_id -> amount
-            
+            // 检查我是否抢过
             const myGrabbedAmount = Utils.getLocalStorage(`grabbed_${packet.id}`);
             
             if (packet.remaining_count <= 0) {
                  packetArea.innerHTML = `
                     <div class="packet-card empty">
-                        <div style="font-size:40px;margin-bottom:10px;">🧧</div>
-                        <div style="color:#888;">手慢了，红包已抢完</div>
+                        <div class="packet-icon">🧧</div>
+                        <div class="subtitle">手慢了，红包已抢完</div>
                     </div>
                 `;
             } else if (myGrabbedAmount) {
                 packetArea.innerHTML = `
-                    <div class="packet-card" style="background:var(--bg-card);border:1px solid var(--primary);">
-                        <div style="color:var(--primary);margin-bottom:10px;">您已领取</div>
-                        <div class="packet-amount" style="color:var(--primary);font-size:32px;">¥${myGrabbedAmount}</div>
+                    <div class="packet-card grabbed">
+                        <div class="packet-title">您已领取</div>
+                        <div class="packet-amount">¥${myGrabbedAmount}</div>
                     </div>
                 `;
             } else {
                 packetArea.innerHTML = `
                     <div class="packet-card">
-                        <div style="color:rgba(255,255,255,0.9);">大吉大利，今晚吃鸡</div>
+                        <div class="packet-desc">大吉大利，今晚吃鸡</div>
                         <div class="packet-amount">¥${packet.total_amount}</div>
                         <div class="packet-status">剩余 ${packet.remaining_count} 个</div>
                         <button class="btn-grab" onclick="App.handleGrabPacket('${packet.id}')">抢</button>
@@ -429,7 +435,7 @@ const App = {
             const isFinished = Store.currentPacket.remaining_count <= 0;
 
             if (!isFinished && !isExpired) {
-                 alert('当前还有未抢完的红包，请稍后再发');
+                 Utils.alert('当前还有未抢完的红包，请稍后再发');
                  return;
             }
             // 如果抢完了或已过期，允许发新的
@@ -442,9 +448,9 @@ const App = {
         const amount = parseFloat(document.getElementById('inputAmount').value);
         const count = parseInt(document.getElementById('inputCount').value);
         
-        if (!amount || amount <= 0) return Utils.toast('请输入有效金额');
-        if (!count || count <= 0) return Utils.toast('请输入有效个数');
-        if (count > 6) return Utils.toast('个数不能超过6个');
+        if (!amount || amount < 10) return Utils.toast('红包金额最低10元', 2000, '⚠️');
+        if (!count || count <= 0) return Utils.toast('请输入有效个数', 2000, '⚠️');
+        if (count > 6) return Utils.toast('个数不能超过6个', 2000, '⚠️');
 
         const btn = document.getElementById('btnSendConfirm');
         btn.disabled = true;
@@ -453,9 +459,9 @@ const App = {
         try {
             const { data, error } = await API.sendPacket(Store.currentGroup.id, Store.user.id, amount, count);
             if (error || !data.success) {
-                alert(error?.message || data?.message || '发送失败');
+                Utils.alert(error?.message || data?.message || '发送失败', '发送失败');
             } else {
-                Utils.toast('发送成功');
+                Utils.toast('发送成功', 2000, '✅');
                 this.closeModals();
                 // 触发刷新
                 const res = await API.getGroupDetails(Store.currentGroup.id);
@@ -466,7 +472,7 @@ const App = {
             }
         } catch (e) {
             console.error(e);
-            alert('网络错误');
+            Utils.alert('网络错误');
         } finally {
             btn.disabled = false;
             btn.textContent = '塞进红包';
@@ -488,7 +494,7 @@ const App = {
         try {
             const { data, error } = await API.grabPacket(packetId, Store.user.id, myName);
             if (error || !data.success) {
-                alert(error?.message || data?.message || '抢红包失败');
+                Utils.alert(error?.message || data?.message || '抢红包失败');
                 // 刷新界面
                 const res = await API.getGroupDetails(Store.currentGroup.id);
                 if (res.data) {
@@ -507,7 +513,7 @@ const App = {
             }
         } catch (e) {
             console.error(e);
-            alert('网络错误');
+            Utils.alert('网络错误');
         }
     },
 
@@ -517,9 +523,9 @@ const App = {
         try {
             const { data, error } = await API.deleteGroup(Store.currentGroup.id, Store.user.id);
             if (error || !data.success) {
-                alert(error?.message || data?.message || '删除失败');
+                Utils.alert(error?.message || data?.message || '删除失败');
             } else {
-                Utils.toast('分组已解散');
+                Utils.toast('分组已解散', 2000, '👋');
                 // 移除本地
                 Store.user.joinedGroups = Store.user.joinedGroups.filter(g => g.id !== Store.currentGroup.id);
                 Utils.setLocalStorage('joined_groups', Store.user.joinedGroups);
@@ -527,7 +533,7 @@ const App = {
             }
         } catch (e) {
             console.error(e);
-            alert('网络错误');
+            Utils.alert('网络错误');
         }
     },
 

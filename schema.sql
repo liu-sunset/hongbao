@@ -213,6 +213,11 @@ begin
   end if;
 
   -- 2. 插入新红包
+  -- 校验金额
+  if p_amount < 10 then
+    return jsonb_build_object('success', false, 'message', '红包金额最低10元');
+  end if;
+
   insert into redpackets (group_id, sender_id, total_amount, remaining_count, total_count)
   values (p_group_id, p_sender_id, p_amount, p_count, p_count);
 
@@ -279,6 +284,29 @@ begin
     if v_packet.remaining_count = 1 then
       -- 最后一个，全给
       v_amount := v_remain_amount;
+    elsif v_packet.remaining_count = v_packet.total_count then
+      -- 第一个抢，必须是“手气最佳”
+      -- 算法：随机取总金额的 [35%, 60%] (当人数 >=3 时)
+      -- 如果人数很少(2人)，取 [60%, 80%]
+      -- 这样保证剩余金额分给剩下的人时，即使平均也不可能超过第一个人
+      -- (简单起见，设定一个较大比例)
+      
+      declare
+        v_ratio numeric;
+      begin
+        if v_packet.total_count = 2 then
+            v_ratio := 0.6 + random() * 0.2; -- 0.6 ~ 0.8
+        else
+            v_ratio := 0.35 + random() * 0.25; -- 0.35 ~ 0.60
+        end if;
+        
+        v_amount := floor(v_packet.total_amount * v_ratio * 100) / 100;
+        
+        -- 安全校验：保证剩余金额足够分给剩下的人 (每人至少 0.01)
+        if v_remain_amount - v_amount < (v_packet.remaining_count - 1) * 0.01 then
+             v_amount := v_remain_amount - (v_packet.remaining_count - 1) * 0.01;
+        end if;
+      end;
     else
       -- 随机算法: 0.01 ~ (剩余金额 / 剩余人数 * 2)
       -- 保证每个人至少 0.01

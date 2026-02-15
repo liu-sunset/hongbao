@@ -15,18 +15,19 @@
             <div class="home-header">
                 <div class="logo">🧧</div>
                 <h1>分组红包</h1>
-                <p style="color:#888;margin-top:10px;">加入分组，一起抢红包</p>
+                <p class="subtitle">加入分组，一起抢红包</p>
             </div>
             
             <div class="home-actions">
                 <div class="action-card" onclick="App.handleJoinGroupClick()">
                     <h3>👋 加入分组</h3>
-                    <p style="color:#888;font-size:14px;">输入分组号加入</p>
+                    <p class="subtitle">输入分组号加入</p>
                 </div>
                 
-                <div class="action-card" style="background:var(--bg-card-hover);" onclick="App.handleCreateGroup()">
+                <div class="action-card highlight" onclick="App.handleCreateGroup()">
                     <h3>✨ 创建分组</h3>
-                    <button id="btnCreate" class="btn-primary" style="margin-top:10px;">立即创建</button>
+                    <p class="subtitle">创建属于你的红包圈子</p>
+                    <button id="btnCreate" class="btn-primary" style="margin-top:16px;width:100%;">立即创建</button>
                 </div>
             </div>
 
@@ -41,10 +42,12 @@
         <!-- 分组视图 -->
         <div id="view-group" class="view">
             <div class="nav-bar">
-                <div class="nav-back" onclick="window.location.hash='#home'">←</div>
+                <div class="nav-back" onclick="window.location.hash='#home'">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+                </div>
                 <div class="nav-title">分组 <span id="groupCodeDisplay">...</span></div>
                 <div class="nav-menu-btn" onclick="App.toggleMenu()">
-                    ⋮
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
                     <div id="menuDropdown" class="menu-dropdown">
                         <button class="menu-item" onclick="App.handleSendPacketClick()">发红包</button>
                         <button class="menu-item" onclick="App.handleShare()">分享分组</button>
@@ -108,19 +111,28 @@
 
     <!-- 抢红包结果弹窗 -->
     <div id="modalResult" class="modal-overlay" onclick="App.closeModals()">
-        <div class="modal-box" style="background: linear-gradient(135deg, #d32f2f, #b71c1c); border:none; color:white;" onclick="event.stopPropagation()">
-            <div style="text-align:center;font-size:60px;">🎉</div>
-            <h3 class="modal-title" style="margin-bottom:10px;">恭喜发财</h3>
-            <div style="text-align:center;opacity:0.8;">您抢到了</div>
+        <div class="modal-box result-box" onclick="event.stopPropagation()">
+            <div class="result-icon">🎉</div>
+            <h3 class="modal-title result-title">恭喜发财</h3>
+            <div class="result-desc">您抢到了</div>
             <div class="result-amount"><small>¥</small><span id="resultAmount">0.00</span></div>
             <div class="modal-footer">
-                <button class="btn-outline" style="border-color:rgba(255,255,255,0.3);color:white;" onclick="App.closeModals()">开心收下</button>
+                <button class="btn-outline" onclick="App.closeModals()">开心收下</button>
             </div>
         </div>
     </div>
 
     <!-- Toast -->
     <div id="toast" class="toast">消息提示</div>
+
+    <!-- Alert 弹窗 -->
+    <div id="alertOverlay" class="alert-overlay">
+        <div class="alert-box">
+            <h3 class="alert-title">提示</h3>
+            <p id="alertMessage" class="alert-message"></p>
+            <button class="alert-btn" onclick="Utils.closeAlert()">知道了</button>
+        </div>
+    </div>
 
     <script src="app.js"></script>
 </body>

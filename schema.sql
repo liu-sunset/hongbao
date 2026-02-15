@@ -93,6 +93,7 @@ create or replace function create_group(
   p_creator_name text
 ) returns jsonb
 language plpgsql
+security definer
 as $$
 declare
   v_group_id uuid;
@@ -132,6 +133,8 @@ begin
 end;
 $$;
 
+grant execute on function create_group(uuid, text) to anon, authenticated, service_role;
+
 -- 4.2 加入分组
 create or replace function join_group(
   p_code text,
@@ -139,6 +142,7 @@ create or replace function join_group(
   p_username text
 ) returns jsonb
 language plpgsql
+security definer
 as $$
 declare
   v_group_id uuid;
@@ -174,6 +178,8 @@ begin
 end;
 $$;
 
+grant execute on function join_group(text, uuid, text) to anon, authenticated, service_role;
+
 -- 4.3 发送红包
 create or replace function send_packet(
   p_group_id uuid,
@@ -182,6 +188,7 @@ create or replace function send_packet(
   p_count integer
 ) returns jsonb
 language plpgsql
+security definer
 as $$
 declare
   v_active_exists boolean;
@@ -213,6 +220,8 @@ begin
 end;
 $$;
 
+grant execute on function send_packet(uuid, uuid, numeric, integer) to anon, authenticated, service_role;
+
 -- 4.4 抢红包 (核心并发逻辑)
 create or replace function grab_packet(
   p_packet_id uuid,
@@ -220,6 +229,7 @@ create or replace function grab_packet(
   p_username text
 ) returns jsonb
 language plpgsql
+security definer
 as $$
 declare
   v_packet redpackets%rowtype;
@@ -299,12 +309,15 @@ begin
 end;
 $$;
 
+grant execute on function grab_packet(uuid, uuid, text) to anon, authenticated, service_role;
+
 -- 4.5 删除分组
 create or replace function delete_group(
   p_group_id uuid,
   p_user_id uuid
 ) returns jsonb
 language plpgsql
+security definer
 as $$
 begin
   -- 1. 检查权限
@@ -318,3 +331,5 @@ begin
   return jsonb_build_object('success', true);
 end;
 $$;
+
+grant execute on function delete_group(uuid, uuid) to anon, authenticated, service_role;

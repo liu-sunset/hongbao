@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="format-detection" content="telephone=no">
     <!-- Supabase SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./supabase.js"></script>
     <title>红包抽奖</title>
     <style>
         :root {
@@ -659,7 +659,11 @@
 
         // 初始化 Supabase
         function initSupabase() {
-            if (SUPABASE_URL && SUPABASE_KEY && SUPABASE_URL !== 'https://amlypzgchsujfxzmizif.supabase.co' && window.supabase) {
+            if (!window.supabase) {
+                console.error('Supabase SDK not loaded');
+                return;
+            }
+            if (SUPABASE_URL && SUPABASE_KEY && SUPABASE_URL !== '您的_SUPABASE_URL') {
                 try {
                     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                     
@@ -897,6 +901,9 @@
                 }
                 
                 if (!supabaseClient) {
+                    if (!window.supabase) {
+                         throw new Error('Supabase SDK 未加载，请检查网络或刷新页面');
+                    }
                     throw new Error('数据库未配置或连接失败，请刷新页面重试');
                 }
 

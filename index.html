@@ -629,7 +629,7 @@
         const SUPABASE_URL = 'https://amlypzgchsujfxzmizif.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFtbHlwemdjaHN1amZ4em1pemlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExMjA0NDYsImV4cCI6MjA4NjY5NjQ0Nn0.Nl-1B0sdNKw9IOWniiwHArwvO6PyIUaCQPSzZdNNn14';
 
-        let supabase = null;
+        let supabaseClient = null;
         let data = null;
         let grabbing = false;
         let hasGrabbed = false;
@@ -659,9 +659,9 @@
 
         // 初始化 Supabase
         function initSupabase() {
-            if (SUPABASE_URL && SUPABASE_KEY && SUPABASE_URL !== '您的_SUPABASE_URL' && window.supabase) {
+            if (SUPABASE_URL && SUPABASE_KEY && SUPABASE_URL !== 'https://amlypzgchsujfxzmizif.supabase.co' && window.supabase) {
                 try {
-                    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                     
                     // 订阅实时变化
                     subscribeRealtime();
@@ -675,9 +675,9 @@
 
         // 订阅实时更新
         function subscribeRealtime() {
-            if (!supabase || realtimeChannel) return;
+            if (!supabaseClient || realtimeChannel) return;
 
-            realtimeChannel = supabase
+            realtimeChannel = supabaseClient
                 .channel('public:redpackets')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'redpackets' }, payload => {
                     console.log('Change received!', payload);
@@ -692,10 +692,10 @@
         }
 
         async function fetchLatestData() {
-            if (!supabase) return;
+            if (!supabaseClient) return;
             
             try {
-                const { data: packets, error } = await supabase
+                const { data: packets, error } = await supabaseClient
                     .from('redpackets')
                     .select('*')
                     .order('created_at', { ascending: false })
@@ -752,7 +752,7 @@
             const displayEl = document.getElementById('redpacketDisplay');
             const grabBtn = document.getElementById('grabBtn');
 
-            if (!supabase) {
+            if (!supabaseClient) {
                 // 未配置数据库时显示提示
                 if (emptyEl) {
                     emptyEl.style.display = 'block';
@@ -890,13 +890,13 @@
 
             try {
                 // 如果还没初始化，先初始化
-                if (!supabase) {
+                if (!supabaseClient) {
                     initSupabase();
                     // 等待一下初始化
                     await new Promise(r => setTimeout(r, 1000));
                 }
                 
-                if (!supabase) {
+                if (!supabaseClient) {
                     throw new Error('数据库未配置或连接失败，请刷新页面重试');
                 }
 
@@ -922,7 +922,7 @@
                     is_active: true
                 };
 
-                const { error } = await supabase
+                const { error } = await supabaseClient
                     .from('redpackets')
                     .insert(newPacket);
 
@@ -981,7 +981,7 @@
 
         async function grab() {
             if (grabbing || !data || data.remaining <= 0 || hasGrabbed) return;
-            if (!supabase) {
+            if (!supabaseClient) {
                 alert('数据库未连接');
                 return;
             }
@@ -1003,7 +1003,7 @@
 
                 while (retryCount < maxRetries && !success) {
                     // 1. 获取最新数据
-                    const { data: latestPacket, error: fetchError } = await supabase
+                    const { data: latestPacket, error: fetchError } = await supabaseClient
                         .from('redpackets')
                         .select('*')
                         .eq('id', data.id)
@@ -1047,7 +1047,7 @@
                     targetParticipant.drawn = true;
                     
                     // 5. 尝试更新数据库 (带乐观锁条件: updated_at)
-                    const { error: updateError } = await supabase
+                    const { error: updateError } = await supabaseClient
                         .from('redpackets')
                         .update({
                             remaining_count: latestPacket.remaining_count - 1,

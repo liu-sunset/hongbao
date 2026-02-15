@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>红包抽奖</title>
     <style>
         :root {
@@ -22,6 +22,7 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent; /* Safari 点击高亮去除 */
         }
 
         body {
@@ -29,6 +30,9 @@
             background: var(--bg-dark);
             color: var(--text-white);
             min-height: 100vh;
+            /* Safari 底部回弹优化 */
+            overscroll-behavior-y: none;
+            -webkit-text-size-adjust: 100%;
         }
 
         .header {
@@ -496,16 +500,53 @@
         let grabbing = false;
         let hasGrabbed = false;
 
-        function init() {
-            const saved = localStorage.getItem('redpacket');
-            if (saved) {
-                data = JSON.parse(saved);
-                if (data.remaining <= 0) {
-                    data = null;
-                    localStorage.removeItem('redpacket');
+        // 安全的 localStorage 封装，适配 Safari 隐私模式
+        const storage = {
+            get(key) {
+                try {
+                    const val = localStorage.getItem(key);
+                    return val ? JSON.parse(val) : null;
+                } catch (e) {
+                    console.error('Storage read error:', e);
+                    return null;
                 }
+            },
+            set(key, val) {
+                try {
+                    localStorage.setItem(key, JSON.stringify(val));
+                } catch (e) {
+                    console.error('Storage write error:', e);
+                    // 在 Safari 隐私模式下，setItem 可能抛出 QuotaExceededError
+                    if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+                        alert('无法保存数据，请关闭隐私模式以获得完整体验。');
+                    }
+                }
+            },
+            remove(key) {
+                try {
+                    localStorage.removeItem(key);
+                } catch (e) {}
             }
-            render();
+        };
+
+        function init() {
+            try {
+                const savedData = storage.get('redpacket');
+                if (savedData) {
+                    data = savedData;
+                    // 简单的结构校验
+                    if (!data.participants || !Array.isArray(data.participants)) {
+                        data = null;
+                        storage.remove('redpacket');
+                    } else if (data.remaining <= 0) {
+                        data = null;
+                        storage.remove('redpacket');
+                    }
+                }
+                render();
+            } catch (e) {
+                console.error('Init error:', e);
+            }
         }
 
         function render() {
@@ -514,22 +555,28 @@
             const grabBtn = document.getElementById('grabBtn');
 
             if (!data) {
-                emptyEl.style.display = 'block';
-                displayEl.classList.remove('active');
+                if (emptyEl) emptyEl.style.display = 'block';
+                if (displayEl) displayEl.classList.remove('active');
                 return;
             }
 
-            emptyEl.style.display = 'none';
-            displayEl.classList.add('active');
-            document.getElementById('remaining').textContent = data.remaining;
-            document.getElementById('drawnCount').textContent = data.drawn.length;
+            if (emptyEl) emptyEl.style.display = 'none';
+            if (displayEl) displayEl.classList.add('active');
+            
+            const remainingEl = document.getElementById('remaining');
+            if (remainingEl) remainingEl.textContent = data.remaining;
+            
+            const drawnCountEl = document.getElementById('drawnCount');
+            if (drawnCountEl) drawnCountEl.textContent = data.drawn.length;
 
-            if (data.remaining <= 0 || hasGrabbed) {
-                grabBtn.disabled = true;
-                grabBtn.textContent = hasGrabbed ? '您已抽取' : '已抢完';
-            } else {
-                grabBtn.disabled = false;
-                grabBtn.textContent = '立即抢购';
+            if (grabBtn) {
+                if (data.remaining <= 0 || hasGrabbed) {
+                    grabBtn.disabled = true;
+                    grabBtn.textContent = hasGrabbed ? '您已抽取' : '已抢完';
+                } else {
+                    grabBtn.disabled = false;
+                    grabBtn.textContent = '立即抢购';
+                }
             }
 
             renderResults();
@@ -538,13 +585,15 @@
 
         function renderResults() {
             const resultsEl = document.getElementById('results');
+            if (!resultsEl || !data) return;
+            
             resultsEl.innerHTML = '';
             data.participants.filter(p => p.drawn).forEach(p => {
                 const item = document.createElement('div');
                 item.className = 'result-item';
                 item.innerHTML = `
                     <span class="name">${p.name}</span>
-                    <span class="amount">¥${p.amount.toFixed(2)}</span>
+                    <span class="amount">¥${(p.amount || 0).toFixed(2)}</span>
                 `;
                 resultsEl.appendChild(item);
             });
@@ -552,6 +601,8 @@
 
         function renderUserList() {
             const listEl = document.getElementById('userList');
+            if (!listEl || !data) return;
+
             listEl.innerHTML = '<div class="user-list-title">参与用户</div>';
             data.participants.forEach(p => {
                 const item = document.createElement('div');
@@ -565,15 +616,22 @@
         }
 
         function showModal() {
-            document.getElementById('modal').classList.add('active');
-            document.getElementById('username').value = '';
-            document.getElementById('password').value = '';
-            document.getElementById('errorMsg').classList.remove('show');
-            document.getElementById('successMsg').classList.remove('show');
+            const modal = document.getElementById('modal');
+            if (modal) modal.classList.add('active');
+            const u = document.getElementById('username');
+            if (u) u.value = '';
+            const p = document.getElementById('password');
+            if (p) p.value = '';
+            
+            const err = document.getElementById('errorMsg');
+            if (err) err.classList.remove('show');
+            const succ = document.getElementById('successMsg');
+            if (succ) succ.classList.remove('show');
         }
 
         function closeModal() {
-            document.getElementById('modal').classList.remove('active');
+            const modal = document.getElementById('modal');
+            if (modal) modal.classList.remove('active');
         }
 
         function send() {
@@ -600,7 +658,7 @@
                 data.participants.push({ id: i, name: `用户${i}`, amount: null, drawn: false });
             }
 
-            localStorage.setItem('redpacket', JSON.stringify(data));
+            storage.set('redpacket', data);
             hasGrabbed = false;
 
             errorEl.classList.remove('show');
@@ -613,18 +671,26 @@
         }
 
         function calcAmounts(remain, count) {
+            if (count <= 0) return [];
             if (count === 1) return [Math.round(remain * 100) / 100];
+            
             const minTotal = MIN_AMOUNT * count;
             if (remain < minTotal) {
-                const arr = Array(count - 1).fill(MIN_AMOUNT);
-                arr.push(Math.round((remain - minTotal + MIN_AMOUNT) * 100) / 100);
+                // 兜底逻辑：如果余额不足以分配最小值，平分或者报错
+                // 这里简单处理：除了最后一个，其他都给最小值，最后一个可能小于最小值
+                const arr = [];
+                for(let i=0; i<count-1; i++) arr.push(MIN_AMOUNT);
+                arr.push(Math.round((remain - MIN_AMOUNT * (count - 1)) * 100) / 100);
                 return arr;
             }
+            
             const arr = [];
             let r = remain;
             for (let i = 0; i < count - 1; i++) {
                 const max = r - MIN_AMOUNT * (count - i - 1);
-                const v = Math.round((Math.random() * (max - MIN_AMOUNT) + MIN_AMOUNT) * 100) / 100;
+                // 确保 max > MIN_AMOUNT
+                const safeMax = Math.max(max, MIN_AMOUNT + 0.01);
+                const v = Math.round((Math.random() * (safeMax - MIN_AMOUNT) + MIN_AMOUNT) * 100) / 100;
                 arr.push(v);
                 r -= v;
             }
@@ -637,43 +703,65 @@
 
             grabbing = true;
             hasGrabbed = true;
-            document.getElementById('grabBtn').style.display = 'none';
-            document.getElementById('grabbing').classList.add('active');
+            
+            const btn = document.getElementById('grabBtn');
+            const grabbingEl = document.getElementById('grabbing');
+            
+            if (btn) btn.style.display = 'none';
+            if (grabbingEl) grabbingEl.classList.add('active');
 
             setTimeout(() => {
-                const avail = data.participants.filter(p => !p.drawn);
-                if (avail.length === 0) {
-                    alert('红包已抢完！');
+                try {
+                    const avail = data.participants.filter(p => !p.drawn);
+                    if (avail.length === 0) {
+                        alert('红包已抢完！');
+                        grabbing = false;
+                        render(); // 恢复界面
+                        return;
+                    }
+
+                    const remain = data.total - data.drawn.reduce((a, b) => a + b, 0);
+                    let amount;
+
+                    if (data.first) {
+                        amount = FIRST_AMOUNT;
+                        data.first = false;
+                    } else {
+                        const amounts = calcAmounts(remain, avail.length);
+                        if (amounts && amounts.length > 0) {
+                             amount = amounts[Math.floor(Math.random() * amounts.length)];
+                        } else {
+                             amount = MIN_AMOUNT; // 兜底
+                        }
+                    }
+
+                    // 再次检查 amount 是否有效
+                    if (typeof amount !== 'number' || isNaN(amount)) {
+                        amount = MIN_AMOUNT;
+                    }
+
+                    const participant = avail[Math.floor(Math.random() * avail.length)];
+                    participant.amount = amount;
+                    participant.drawn = true;
+                    data.drawn.push(amount);
+                    data.remaining--;
+
+                    storage.set('redpacket', data);
+
+                    if (grabbingEl) grabbingEl.classList.remove('active');
+                    if (btn) btn.style.display = 'block';
                     grabbing = false;
-                    return;
+
+                    alert(`恭喜！您抢到了 ¥${amount.toFixed(2)} 元红包！`);
+
+                    render();
+                } catch (e) {
+                    console.error('Grab error:', e);
+                    alert('抢红包出错，请重试');
+                    grabbing = false;
+                    if (btn) btn.style.display = 'block';
+                    if (grabbingEl) grabbingEl.classList.remove('active');
                 }
-
-                const remain = data.total - data.drawn.reduce((a, b) => a + b, 0);
-                let amount;
-
-                if (data.first) {
-                    amount = FIRST_AMOUNT;
-                    data.first = false;
-                } else {
-                    const amounts = calcAmounts(remain, avail.length);
-                    amount = amounts[Math.floor(Math.random() * amounts.length)];
-                }
-
-                const participant = avail[Math.floor(Math.random() * avail.length)];
-                participant.amount = amount;
-                participant.drawn = true;
-                data.drawn.push(amount);
-                data.remaining--;
-
-                localStorage.setItem('redpacket', JSON.stringify(data));
-
-                document.getElementById('grabbing').classList.remove('active');
-                document.getElementById('grabBtn').style.display = 'block';
-                grabbing = false;
-
-                alert(`恭喜！您抢到了 ¥${amount.toFixed(2)} 元红包！`);
-
-                render();
             }, 1000);
         }
 
@@ -681,7 +769,12 @@
             if (e.key === 'Enter') send();
         });
 
-        init();
+        // 确保 DOM 加载完成后执行
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
     </script>
 </body>
 </html>

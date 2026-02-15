@@ -3,1113 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <!-- iOS Web App 支持 -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="format-detection" content="telephone=no">
-    <!-- Supabase SDK -->
+    <title>分组红包系统</title>
+    <link rel="stylesheet" href="style.css">
     <script src="./supabase.js"></script>
-    <title>红包抽奖</title>
-    <style>
-        :root {
-            --primary: #00c853;
-            --primary-dark: #009624;
-            --primary-light: #69f0ae;
-            --bg-dark: #0a0a0a;
-            --bg-card: #141414;
-            --bg-card-hover: #1a1a1a;
-            --text-white: #ffffff;
-            --text-gray: #888888;
-            --border: #2a2a2a;
-            --shadow: rgba(0, 200, 83, 0.15);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent; /* Safari 点击高亮去除 */
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            background: var(--bg-dark);
-            color: var(--text-white);
-            min-height: 100vh;
-            /* Safari 底部回弹优化 */
-            overscroll-behavior-y: none;
-            -webkit-text-size-adjust: 100%;
-        }
-
-        .header {
-            padding: 20px 30px;
-            display: flex;
-            justify-content: flex-end;
-        }
-
-        button, input {
-            -webkit-appearance: none;
-            appearance: none;
-            font-family: inherit;
-        }
-
-        .send-btn {
-            background: var(--primary);
-            color: var(--bg-dark);
-            border: none;
-            padding: 10px 24px;
-            border-radius: 50px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            -webkit-user-select: none;
-            user-select: none;
-            /* 增大点击区域 */
-            min-height: 44px;
-        }
-
-        .send-btn:hover {
-            background: var(--primary-light);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 20px var(--shadow);
-        }
-
-        .main {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: calc(100vh - 80px);
-            padding: 20px;
-        }
-
-        .card {
-            background: var(--bg-card);
-            border-radius: 24px;
-            padding: 50px 40px;
-            max-width: 420px;
-            width: 100%;
-            text-align: center;
-            border: 1px solid var(--border);
-        }
-
-        .logo {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            border-radius: 50%;
-            margin: 0 auto 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 36px;
-        }
-
-        h1 {
-            font-size: 24px;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-        .subtitle {
-            color: var(--text-gray);
-            font-size: 14px;
-            margin-bottom: 40px;
-        }
-
-        .empty-state {
-            padding: 60px 0;
-        }
-
-        .empty-icon {
-            font-size: 48px;
-            margin-bottom: 20px;
-            opacity: 0.6;
-        }
-
-        .empty-text {
-            font-size: 18px;
-            color: var(--text-gray);
-        }
-
-        .redpacket-display {
-            display: none;
-        }
-
-        .redpacket-display.active {
-            display: block;
-        }
-
-        .rp-info {
-            background: linear-gradient(135deg, #1a2e1a, #0d1f0d);
-            border-radius: 20px;
-            padding: 40px 30px;
-            margin-bottom: 30px;
-            border: 1px solid #2a3f2a;
-        }
-
-        .rp-amount {
-            font-size: 56px;
-            font-weight: 700;
-            color: var(--primary);
-            line-height: 1;
-        }
-
-        .rp-label {
-            font-size: 14px;
-            color: var(--text-gray);
-            margin-top: 8px;
-        }
-
-        .rp-remaining {
-            margin-top: 20px;
-            font-size: 15px;
-            color: var(--text-gray);
-        }
-
-        .rp-remaining span {
-            color: var(--primary);
-            font-weight: 600;
-        }
-
-        .grab-btn {
-            width: 100%;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: var(--bg-dark);
-            border: none;
-            padding: 18px;
-            border-radius: 50px;
-            font-size: 18px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin: 20px 0;
-            -webkit-user-select: none;
-            user-select: none;
-            min-height: 56px;
-        }
-
-        .grab-btn:active:not(:disabled) {
-            transform: scale(0.98);
-        }
-
-        .grab-btn:hover:not(:disabled) {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 30px var(--shadow);
-        }
-
-        .grab-btn:disabled {
-            background: #333;
-            color: #666;
-            cursor: not-allowed;
-        }
-
-        .grabbing {
-            display: none;
-            padding: 30px;
-            color: var(--primary);
-            font-size: 18px;
-        }
-
-        .grabbing.active {
-            display: block;
-            animation: pulse 1s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        .results {
-            margin-top: 30px;
-            text-align: left;
-        }
-
-        .result-item {
-            background: var(--bg-card-hover);
-            border-radius: 12px;
-            padding: 16px 20px;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            animation: slideIn 0.3s ease;
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .result-item:first-child {
-            background: linear-gradient(135deg, #1a2e1a, #0d1f0d);
-            border: 1px solid #2a3f2a;
-        }
-
-        .result-item .name {
-            font-weight: 500;
-        }
-
-        .result-item .amount {
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--primary);
-        }
-
-        .result-item:first-child .amount {
-            color: #ffd700;
-        }
-
-        .stats {
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-            margin-top: 25px;
-            padding: 20px;
-            background: var(--bg-card-hover);
-            border-radius: 16px;
-        }
-
-        .stat-item {
-            text-align: center;
-        }
-
-        .stat-value {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--primary);
-        }
-
-        .stat-label {
-            font-size: 12px;
-            color: var(--text-gray);
-            margin-top: 4px;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            backdrop-filter: blur(4px);
-        }
-
-        .modal.active {
-            display: flex;
-        }
-
-        .modal-card {
-            background: var(--bg-card);
-            border-radius: 24px;
-            padding: 40px;
-            width: 90%;
-            max-width: 380px;
-            border: 1px solid var(--border);
-        }
-
-        .modal-title {
-            font-size: 22px;
-            font-weight: 600;
-            margin-bottom: 30px;
-            text-align: center;
-        }
-
-        .input-group {
-            margin-bottom: 20px;
-        }
-
-        .input-group label {
-            display: block;
-            font-size: 13px;
-            color: var(--text-gray);
-            margin-bottom: 8px;
-            text-align: left;
-        }
-
-        .input-group input {
-            width: 100%;
-            padding: 14px 18px;
-            background: var(--bg-dark);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            color: var(--text-white);
-            font-size: 15px;
-            transition: border-color 0.3s;
-        }
-
-        .input-group input:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-
-        .modal-actions {
-            display: flex;
-            gap: 12px;
-            margin-top: 30px;
-        }
-
-        .modal-actions button {
-            flex: 1;
-            padding: 14px;
-            border-radius: 12px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .btn-cancel {
-            background: var(--bg-card-hover);
-            color: var(--text-gray);
-            border: 1px solid var(--border);
-        }
-
-        .btn-cancel:hover {
-            background: var(--border);
-        }
-
-        .btn-confirm {
-            background: var(--primary);
-            color: var(--bg-dark);
-            border: none;
-        }
-
-        .btn-confirm:hover {
-            background: var(--primary-light);
-        }
-
-        .msg-error {
-            color: #ff5252;
-            text-align: center;
-            font-size: 13px;
-            margin-top: 12px;
-            display: none;
-        }
-
-        .msg-error.show {
-            display: block;
-        }
-
-        .msg-success {
-            color: var(--primary);
-            text-align: center;
-            font-size: 13px;
-            margin-top: 12px;
-            display: none;
-        }
-
-        .msg-success.show {
-            display: block;
-        }
-
-        .user-list {
-            margin-top: 25px;
-            text-align: left;
-        }
-
-        .user-list-title {
-            font-size: 13px;
-            color: var(--text-gray);
-            margin-bottom: 12px;
-        }
-
-        .user-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 12px 16px;
-            background: var(--bg-card-hover);
-            border-radius: 10px;
-            margin-bottom: 8px;
-            font-size: 14px;
-        }
-
-        .user-item.drawn {
-            background: linear-gradient(135deg, #1a2e1a, #0d1f0d);
-            border: 1px solid #2a3f2a;
-        }
-
-        .user-item .amount {
-            color: var(--primary);
-            font-weight: 600;
-        }
-
-        /* 红包结果弹窗美化 */
-        .result-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            z-index: 2000;
-            justify-content: center;
-            align-items: center;
-            backdrop-filter: blur(8px);
-        }
-
-        .result-modal.active {
-            display: flex;
-        }
-
-        .result-card {
-            background: linear-gradient(135deg, #ff4b2b, #ff416c);
-            width: 300px;
-            padding: 40px 20px;
-            border-radius: 24px;
-            text-align: center;
-            position: relative;
-            box-shadow: 0 20px 40px rgba(255, 75, 43, 0.3);
-            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            color: #fff;
-        }
-
-        @keyframes popIn {
-            from { transform: scale(0.5); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
-
-        .result-card .crown {
-            font-size: 48px;
-            margin-bottom: 10px;
-            display: block;
-        }
-
-        .result-card h3 {
-            font-size: 18px;
-            margin-bottom: 20px;
-            opacity: 0.9;
-        }
-
-        .result-card .amount-display {
-            font-size: 48px;
-            font-weight: 800;
-            margin-bottom: 10px;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .result-card .amount-display small {
-            font-size: 18px;
-            font-weight: 400;
-            margin-right: 4px;
-        }
-
-        .result-card .close-result-btn {
-            margin-top: 30px;
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            padding: 12px 40px;
-            border-radius: 50px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .result-card .close-result-btn:hover {
-            background: white;
-            color: #ff4b2b;
-        }
-
-        /* 简单的彩带粒子动画 */
-        .confetti {
-            position: absolute;
-            width: 8px;
-            height: 8px;
-            background: #ffd700;
-            border-radius: 50%;
-            animation: fall 3s infinite;
-        }
-
-        @keyframes fall {
-            0% { transform: translateY(-50px) rotate(0deg); opacity: 1; }
-            100% { transform: translateY(300px) rotate(360deg); opacity: 0; }
-        }
-    </style>
 </head>
 <body>
-    <div class="header">
-        <button class="send-btn" onclick="showModal()">+ 发红包</button>
-    </div>
 
-    <div class="main">
-        <div class="card">
-            <div class="logo">🧧</div>
-            <h1>红包抽奖</h1>
-            <p class="subtitle">拼手气抢红包</p>
-
-            <div id="emptyState" class="empty-state">
-                <div class="empty-icon">📭</div>
-                <p class="empty-text">暂无红包</p>
+    <div class="container">
+        <!-- 首页视图 -->
+        <div id="view-home" class="view active">
+            <div class="home-header">
+                <div class="logo">🧧</div>
+                <h1>分组红包</h1>
+                <p style="color:#888;margin-top:10px;">加入分组，一起抢红包</p>
             </div>
-
-            <div id="redpacketDisplay" class="redpacket-display">
-                <div class="rp-info">
-                    <div class="rp-amount">¥100</div>
-                    <div class="rp-label">红包金额</div>
-                    <div class="rp-remaining">剩余 <span id="remaining">6</span> 人</div>
+            
+            <div class="home-actions">
+                <div class="action-card" onclick="App.handleJoinGroupClick()">
+                    <h3>👋 加入分组</h3>
+                    <p style="color:#888;font-size:14px;">输入分组号加入</p>
                 </div>
+                
+                <div class="action-card" style="background:var(--bg-card-hover);" onclick="App.handleCreateGroup()">
+                    <h3>✨ 创建分组</h3>
+                    <button id="btnCreate" class="btn-primary" style="margin-top:10px;">立即创建</button>
+                </div>
+            </div>
 
-                <button id="grabBtn" class="grab-btn" onclick="grab()">立即抢购</button>
-                <div id="grabbing" class="grabbing">正在抢购...</div>
+            <div class="my-groups">
+                <div class="section-title">我的分组</div>
+                <div id="myGroupsList" class="group-list">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+        </div>
 
-                <div id="results" class="results"></div>
-
-                <div class="stats">
-                    <div class="stat-item">
-                        <div class="stat-value">100</div>
-                        <div class="stat-label">总金额(元)</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="drawnCount">0</div>
-                        <div class="stat-label">已抽取</div>
+        <!-- 分组视图 -->
+        <div id="view-group" class="view">
+            <div class="nav-bar">
+                <div class="nav-back" onclick="window.location.hash='#home'">←</div>
+                <div class="nav-title">分组 <span id="groupCodeDisplay">...</span></div>
+                <div class="nav-menu-btn" onclick="App.toggleMenu()">
+                    ⋮
+                    <div id="menuDropdown" class="menu-dropdown">
+                        <button class="menu-item" onclick="App.handleSendPacketClick()">发红包</button>
+                        <button class="menu-item" onclick="App.handleShare()">分享分组</button>
+                        <button id="btnDeleteGroup" class="menu-item danger" onclick="App.handleDeleteGroup()">解散分组</button>
                     </div>
                 </div>
+            </div>
 
-                <div class="user-list" id="userList"></div>
+            <div class="group-content">
+                <!-- 红包区域 -->
+                <div id="packetArea"></div>
+
+                <!-- 成员列表 -->
+                <div class="section-title">分组成员</div>
+                <div id="membersList" class="members-list">
+                    <!-- 动态生成 -->
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- 解决 iOS :active 状态不生效问题 -->
-    <script>document.body.addEventListener('touchstart', function() {}, {passive: true});</script>
-
-    <div id="modal" class="modal">
-        <div class="modal-card">
-            <h2 class="modal-title">发红包</h2>
-            <div class="input-group">
-                <label>用户名</label>
-                <input type="text" id="username" placeholder="请输入管理员用户名">
+    <!-- 弹窗组件 -->
+    
+    <!-- 加入分组弹窗 -->
+    <div id="modalJoin" class="modal-overlay">
+        <div class="modal-box">
+            <h3 class="modal-title">加入分组</h3>
+            <div class="form-group">
+                <label>分组号 (6位数字)</label>
+                <input type="number" id="inputJoinCode" class="form-input" placeholder="例如: 123456">
             </div>
-            <div class="input-group">
-                <label>密码</label>
-                <input type="password" id="password" placeholder="请输入管理员密码">
+            <div class="form-group">
+                <label>您的昵称</label>
+                <input type="text" id="inputJoinName" class="form-input" placeholder="例如: 隔壁老王" maxlength="10">
             </div>
-            <div id="errorMsg" class="msg-error">用户名或密码错误</div>
-            <div id="successMsg" class="msg-success">红包发送成功！</div>
-            <div class="modal-actions">
-                <button class="btn-cancel" onclick="closeModal()">取消</button>
-                <button class="btn-confirm" onclick="send()">发送</button>
+            <div class="modal-footer">
+                <button class="btn-outline" onclick="App.closeModals()">取消</button>
+                <button id="btnJoinConfirm" class="btn-primary" onclick="App.handleJoinSubmit()">加入</button>
             </div>
         </div>
     </div>
 
-    <div id="resultModal" class="result-modal">
-        <div class="result-card">
-            <span class="crown">🎉</span>
-            <h3>恭喜获得红包</h3>
-            <div class="amount-display"><small>¥</small><span id="resultAmount">0.00</span></div>
-            <button class="close-result-btn" onclick="closeResult()">太棒了</button>
+    <!-- 发红包弹窗 -->
+    <div id="modalSend" class="modal-overlay">
+        <div class="modal-box">
+            <h3 class="modal-title">发红包</h3>
+            <div class="form-group">
+                <label>总金额 (元)</label>
+                <input type="number" id="inputAmount" class="form-input" placeholder="0.00" step="0.01">
+            </div>
+            <div class="form-group">
+                <label>红包个数 (最大6个)</label>
+                <input type="number" id="inputCount" class="form-input" placeholder="1-6" max="6">
+            </div>
+            <div class="modal-footer">
+                <button class="btn-outline" onclick="App.closeModals()">取消</button>
+                <button id="btnSendConfirm" class="btn-primary" onclick="App.handleSendSubmit()">塞进红包</button>
+            </div>
         </div>
     </div>
 
-    <script>
-        const TOTAL_AMOUNT = 100;
-        const FIRST_AMOUNT = 32.8;
-        const MIN_AMOUNT = 8.88;
-        const TOTAL_COUNT = 6;
-        const ADMIN_USER = 'admin';
-        const ADMIN_PASS = '123456';
+    <!-- 抢红包结果弹窗 -->
+    <div id="modalResult" class="modal-overlay" onclick="App.closeModals()">
+        <div class="modal-box" style="background: linear-gradient(135deg, #d32f2f, #b71c1c); border:none; color:white;" onclick="event.stopPropagation()">
+            <div style="text-align:center;font-size:60px;">🎉</div>
+            <h3 class="modal-title" style="margin-bottom:10px;">恭喜发财</h3>
+            <div style="text-align:center;opacity:0.8;">您抢到了</div>
+            <div class="result-amount"><small>¥</small><span id="resultAmount">0.00</span></div>
+            <div class="modal-footer">
+                <button class="btn-outline" style="border-color:rgba(255,255,255,0.3);color:white;" onclick="App.closeModals()">开心收下</button>
+            </div>
+        </div>
+    </div>
 
-        // Supabase 配置 (在此填写您的 URL 和 Key)
-        const SUPABASE_URL = 'https://amlypzgchsujfxzmizif.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFtbHlwemdjaHN1amZ4em1pemlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExMjA0NDYsImV4cCI6MjA4NjY5NjQ0Nn0.Nl-1B0sdNKw9IOWniiwHArwvO6PyIUaCQPSzZdNNn14';
+    <!-- Toast -->
+    <div id="toast" class="toast">消息提示</div>
 
-        let supabaseClient = null;
-        let data = null;
-        let grabbing = false;
-        let hasGrabbed = false;
-        let realtimeChannel = null;
-
-        // 安全的 localStorage 封装
-        const storage = {
-            get(key) {
-                try {
-                    const val = localStorage.getItem(key);
-                    return val ? JSON.parse(val) : null;
-                } catch (e) {
-                    return null;
-                }
-            },
-            set(key, val) {
-                try {
-                    localStorage.setItem(key, JSON.stringify(val));
-                } catch (e) {}
-            },
-            remove(key) {
-                try {
-                    localStorage.removeItem(key);
-                } catch (e) {}
-            }
-        };
-
-        // 初始化 Supabase
-        function initSupabase() {
-            if (!window.supabase) {
-                console.error('Supabase SDK not loaded');
-                return;
-            }
-            if (SUPABASE_URL && SUPABASE_KEY && SUPABASE_URL !== '您的_SUPABASE_URL') {
-                try {
-                    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                    
-                    // 订阅实时变化
-                    subscribeRealtime();
-                    // 拉取最新数据
-                    fetchLatestData();
-                } catch (e) {
-                    console.error('Supabase init failed:', e);
-                }
-            }
-        }
-
-        // 订阅实时更新
-        function subscribeRealtime() {
-            if (!supabaseClient || realtimeChannel) return;
-
-            realtimeChannel = supabaseClient
-                .channel('public:redpackets')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'redpackets' }, payload => {
-                    console.log('Change received!', payload);
-                    if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-                        // 如果是新的或更新的，检查是否比当前数据新
-                        const newData = payload.new;
-                        // 简单起见，直接重新拉取最新的一条，确保逻辑一致
-                        fetchLatestData();
-                    }
-                })
-                .subscribe();
-        }
-
-        async function fetchLatestData() {
-            if (!supabaseClient) return;
-            
-            try {
-                const { data: packets, error } = await supabaseClient
-                    .from('redpackets')
-                    .select('*')
-                    .order('created_at', { ascending: false })
-                    .limit(1);
-
-                if (error) throw error;
-
-                if (packets && packets.length > 0) {
-                    const packet = packets[0];
-                    // 转换数据库格式到前端格式
-                    data = {
-                        id: packet.id, // 数据库 ID
-                        total: packet.total_amount,
-                        remaining: packet.remaining_count,
-                        drawn: [], // 需要从 participants 计算
-                        first: packet.is_first, // 需要数据库加这个字段或前端逻辑判断
-                        participants: packet.participants || [],
-                        updated_at: packet.updated_at
-                    };
-
-                    // 计算已抽取的金额列表
-                    data.drawn = data.participants.filter(p => p.drawn).map(p => p.amount);
-
-                    // 检查当前用户是否已抢
-                    // 这里简单用 localStorage 记录，实际应该用设备指纹或用户 ID
-                    // 为了兼容旧逻辑，我们还是依赖 localStorage 的 hasGrabbed
-                    // 但如果数据库换了（新红包），本地记录应该失效
-                    const lastPacketId = storage.get('lastPacketId');
-                    if (lastPacketId !== data.id) {
-                        storage.remove('hasGrabbed');
-                        hasGrabbed = false;
-                        storage.set('lastPacketId', data.id);
-                    } else {
-                        hasGrabbed = storage.get('hasGrabbed') === true;
-                    }
-
-                    render();
-                } else {
-                    data = null;
-                    render();
-                }
-            } catch (e) {
-                console.error('Fetch error:', e);
-            }
-        }
-
-        function init() {
-            initSupabase();
-            render();
-        }
-
-        function render() {
-            const emptyEl = document.getElementById('emptyState');
-            const displayEl = document.getElementById('redpacketDisplay');
-            const grabBtn = document.getElementById('grabBtn');
-
-            if (!supabaseClient) {
-                // 未配置数据库时显示提示
-                if (emptyEl) {
-                    emptyEl.style.display = 'block';
-                    emptyEl.querySelector('.empty-text').textContent = '请管理员配置数据库';
-                }
-                if (displayEl) displayEl.classList.remove('active');
-                return;
-            }
-
-            if (!data) {
-                if (emptyEl) {
-                    emptyEl.style.display = 'block';
-                    emptyEl.querySelector('.empty-text').textContent = '暂无红包';
-                }
-                if (displayEl) displayEl.classList.remove('active');
-                return;
-            }
-
-            if (emptyEl) emptyEl.style.display = 'none';
-            if (displayEl) displayEl.classList.add('active');
-            
-            const remainingEl = document.getElementById('remaining');
-            if (remainingEl) remainingEl.textContent = data.remaining;
-            
-            const drawnCountEl = document.getElementById('drawnCount');
-            if (drawnCountEl) drawnCountEl.textContent = data.drawn.length;
-
-            if (grabBtn) {
-                if (data.remaining <= 0 || hasGrabbed) {
-                    grabBtn.disabled = true;
-                    grabBtn.textContent = hasGrabbed ? '您已抽取' : '已抢完';
-                } else {
-                    grabBtn.disabled = false;
-                    grabBtn.textContent = '立即抢购';
-                }
-            }
-
-            renderResults();
-            renderUserList();
-        }
-
-        function renderResults() {
-            const resultsEl = document.getElementById('results');
-            if (!resultsEl || !data) return;
-            
-            resultsEl.innerHTML = '';
-            data.participants.filter(p => p.drawn).forEach(p => {
-                const item = document.createElement('div');
-                item.className = 'result-item';
-                item.innerHTML = `
-                    <span class="name">${p.name}</span>
-                    <span class="amount">¥${(p.amount || 0).toFixed(2)}</span>
-                `;
-                resultsEl.appendChild(item);
-            });
-        }
-
-        function renderUserList() {
-            const listEl = document.getElementById('userList');
-            if (!listEl || !data) return;
-
-            listEl.innerHTML = '<div class="user-list-title">参与用户</div>';
-            data.participants.forEach(p => {
-                const item = document.createElement('div');
-                item.className = `user-item ${p.drawn ? 'drawn' : ''}`;
-                item.innerHTML = `
-                    <span>${p.name}</span>
-                    <span class="amount">${p.amount ? '¥' + p.amount.toFixed(2) : '待抽取'}</span>
-                `;
-                listEl.appendChild(item);
-            });
-        }
-
-        function showModal() {
-            const modal = document.getElementById('modal');
-            if (modal) modal.classList.add('active');
-            const u = document.getElementById('username');
-            if (u) u.value = '';
-            const p = document.getElementById('password');
-            if (p) p.value = '';
-            
-            const err = document.getElementById('errorMsg');
-            if (err) err.classList.remove('show');
-            const succ = document.getElementById('successMsg');
-            if (succ) succ.classList.remove('show');
-        }
-
-        function closeModal() {
-            const modal = document.getElementById('modal');
-            if (modal) modal.classList.remove('active');
-        }
-
-        function showResult(amount) {
-            const modal = document.getElementById('resultModal');
-            const amountEl = document.getElementById('resultAmount');
-            if (amountEl) amountEl.textContent = amount.toFixed(2);
-            if (modal) modal.classList.add('active');
-            
-            // 添加简单的彩带
-            for (let i = 0; i < 15; i++) {
-                const confetti = document.createElement('div');
-                confetti.className = 'confetti';
-                confetti.style.left = Math.random() * 100 + '%';
-                confetti.style.backgroundColor = ['#ffd700', '#ffffff', '#ffeb3b'][Math.floor(Math.random() * 3)];
-                confetti.style.animationDelay = Math.random() * 2 + 's';
-                modal.appendChild(confetti);
-                setTimeout(() => confetti.remove(), 3000);
-            }
-        }
-
-        function closeResult() {
-            const modal = document.getElementById('resultModal');
-            if (modal) modal.classList.remove('active');
-        }
-
-        async function send() {
-            const user = document.getElementById('username').value;
-            const pass = document.getElementById('password').value;
-            const errorEl = document.getElementById('errorMsg');
-            const successEl = document.getElementById('successMsg');
-            const confirmBtn = document.querySelector('.btn-confirm');
-            const originalText = confirmBtn.textContent;
-
-            if (user !== ADMIN_USER || pass !== ADMIN_PASS) {
-                errorEl.textContent = '用户名或密码错误';
-                errorEl.classList.add('show');
-                successEl.classList.remove('show');
-                return;
-            }
-
-            // 设置 Loading 状态
-            confirmBtn.disabled = true;
-            confirmBtn.textContent = '发送中...';
-            errorEl.classList.remove('show');
-
-            try {
-                // 如果还没初始化，先初始化
-                if (!supabaseClient) {
-                    initSupabase();
-                    // 等待一下初始化
-                    await new Promise(r => setTimeout(r, 1000));
-                }
-                
-                if (!supabaseClient) {
-                    if (!window.supabase) {
-                         throw new Error('Supabase SDK 未加载，请检查网络或刷新页面');
-                    }
-                    throw new Error('数据库未配置或连接失败，请刷新页面重试');
-                }
-
-                // 检查当前是否有未抢完的红包
-                // 先拉取最新的
-                await fetchLatestData();
-                
-                if (data && data.remaining > 0) {
-                    throw new Error('当前红包尚未抢完，无法发送新红包');
-                }
-
-                // 准备新红包数据
-                const participants = [];
-                for (let i = 1; i <= TOTAL_COUNT; i++) {
-                    participants.push({ id: i, name: `用户${i}`, amount: null, drawn: false });
-                }
-
-                const newPacket = {
-                    total_amount: TOTAL_AMOUNT,
-                    remaining_count: TOTAL_COUNT,
-                    participants: participants,
-                    is_first: true,
-                    is_active: true
-                };
-
-                const { error } = await supabaseClient
-                    .from('redpackets')
-                    .insert(newPacket);
-
-                if (error) throw error;
-
-                // 本地清理旧状态
-                storage.remove('hasGrabbed');
-                hasGrabbed = false;
-
-                successEl.classList.add('show');
-
-                setTimeout(() => {
-                    closeModal();
-                    // fetchLatestData 会通过 Realtime 触发，或者手动触发
-                    fetchLatestData();
-                }, 1000);
-
-            } catch (e) {
-                console.error('Send error:', e);
-                errorEl.textContent = '发送失败: ' + (e.message || e);
-                errorEl.classList.add('show');
-            } finally {
-                // 恢复按钮状态
-                confirmBtn.disabled = false;
-                confirmBtn.textContent = originalText;
-            }
-        }
-
-        function calcAmounts(remain, count) {
-            if (count <= 0) return [];
-            if (count === 1) return [Math.round(remain * 100) / 100];
-            
-            const minTotal = MIN_AMOUNT * count;
-            if (remain < minTotal) {
-                // 兜底逻辑：如果余额不足以分配最小值，平分或者报错
-                // 这里简单处理：除了最后一个，其他都给最小值，最后一个可能小于最小值
-                const arr = [];
-                for(let i=0; i<count-1; i++) arr.push(MIN_AMOUNT);
-                arr.push(Math.round((remain - MIN_AMOUNT * (count - 1)) * 100) / 100);
-                return arr;
-            }
-            
-            const arr = [];
-            let r = remain;
-            for (let i = 0; i < count - 1; i++) {
-                const max = r - MIN_AMOUNT * (count - i - 1);
-                // 确保 max > MIN_AMOUNT
-                const safeMax = Math.max(max, MIN_AMOUNT + 0.01);
-                const v = Math.round((Math.random() * (safeMax - MIN_AMOUNT) + MIN_AMOUNT) * 100) / 100;
-                arr.push(v);
-                r -= v;
-            }
-            arr.push(Math.round(r * 100) / 100);
-            return arr;
-        }
-
-        async function grab() {
-            if (grabbing || !data || data.remaining <= 0 || hasGrabbed) return;
-            if (!supabaseClient) {
-                alert('数据库未连接');
-                return;
-            }
-
-            grabbing = true;
-            
-            const btn = document.getElementById('grabBtn');
-            const grabbingEl = document.getElementById('grabbing');
-            
-            if (btn) btn.style.display = 'none';
-            if (grabbingEl) grabbingEl.classList.add('active');
-
-            try {
-                // 乐观锁重试机制
-                let retryCount = 0;
-                const maxRetries = 5;
-                let success = false;
-                let finalAmount = 0;
-
-                while (retryCount < maxRetries && !success) {
-                    // 1. 获取最新数据
-                    const { data: latestPacket, error: fetchError } = await supabaseClient
-                        .from('redpackets')
-                        .select('*')
-                        .eq('id', data.id)
-                        .single();
-                    
-                    if (fetchError || !latestPacket) throw new Error('Fetch failed');
-
-                    // 2. 检查是否还有剩余
-                    if (latestPacket.remaining_count <= 0) {
-                        alert('红包已抢完！');
-                        break;
-                    }
-
-                    // 3. 计算金额
-                    const avail = latestPacket.participants.filter(p => !p.drawn);
-                    if (avail.length === 0) {
-                        alert('红包已抢完！');
-                        break;
-                    }
-
-                    const remainAmount = latestPacket.total_amount - latestPacket.participants.reduce((sum, p) => sum + (p.amount || 0), 0);
-                    let amount;
-
-                    if (latestPacket.is_first) {
-                        amount = FIRST_AMOUNT;
-                    } else {
-                        const amounts = calcAmounts(remainAmount, avail.length);
-                        if (amounts && amounts.length > 0) {
-                            amount = amounts[Math.floor(Math.random() * amounts.length)];
-                        } else {
-                            amount = MIN_AMOUNT;
-                        }
-                    }
-                    
-                    // 确保 amount 是数字
-                    amount = Number(amount) || MIN_AMOUNT;
-
-                    // 4. 更新本地结构
-                    const targetParticipant = avail[Math.floor(Math.random() * avail.length)];
-                    targetParticipant.amount = amount;
-                    targetParticipant.drawn = true;
-                    
-                    // 5. 尝试更新数据库 (带乐观锁条件: updated_at)
-                    const { error: updateError } = await supabaseClient
-                        .from('redpackets')
-                        .update({
-                            remaining_count: latestPacket.remaining_count - 1,
-                            participants: latestPacket.participants,
-                            is_first: false, // 只要有人抢了，就不再是第一次
-                            updated_at: new Date().toISOString()
-                        })
-                        .eq('id', data.id)
-                        .eq('updated_at', latestPacket.updated_at); // 乐观锁关键
-
-                    if (!updateError) {
-                        success = true;
-                        finalAmount = amount;
-                        // 更新成功，更新本地状态
-                        hasGrabbed = true;
-                        storage.set('hasGrabbed', true);
-                        storage.set('lastPacketId', data.id);
-                        
-                        // 强制刷新一次界面
-                        await fetchLatestData();
-                    } else {
-                        // 更新失败（并发冲突），重试
-                        console.log('Concurrency conflict, retrying...', retryCount);
-                        retryCount++;
-                        await new Promise(r => setTimeout(r, Math.random() * 200 + 100)); // 随机避让
-                    }
-                }
-
-                if (success) {
-                    showResult(finalAmount);
-                } else if (retryCount >= maxRetries) {
-                    alert('抢红包人数过多，请重试！');
-                }
-
-            } catch (e) {
-                console.error('Grab error:', e);
-                alert('抢红包出错，请重试');
-            } finally {
-                grabbing = false;
-                if (btn) btn.style.display = 'block';
-                if (grabbingEl) grabbingEl.classList.remove('active');
-                render();
-            }
-        }
-
-        document.getElementById('password').addEventListener('keypress', e => {
-            if (e.key === 'Enter') send();
-        });
-
-        // 确保 DOM 加载完成后执行
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', init);
-        } else {
-            init();
-        }
-    </script>
+    <script src="app.js"></script>
 </body>
 </html>

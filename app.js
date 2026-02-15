@@ -234,7 +234,7 @@ const App = {
 
         try {
             const { data, error } = await API.createGroup(Store.user.id, name);
-            if (error || !data.success) {
+            if (error || !data || !data.success) {
                 Utils.alert(error?.message || data?.message || '创建失败');
             } else {
                 const groupInfo = data.data; // {id, code}
@@ -269,7 +269,7 @@ const App = {
 
         try {
             const { data, error } = await API.joinGroup(code, Store.user.id, name);
-            if (error || !data.success) {
+            if (error || !data || !data.success) {
                 Utils.alert(error?.message || data?.message || '加入失败');
             } else {
                 const groupInfo = data.data; // {id}
@@ -458,7 +458,7 @@ const App = {
 
         try {
             const { data, error } = await API.sendPacket(Store.currentGroup.id, Store.user.id, amount, count);
-            if (error || !data.success) {
+            if (error || !data || !data.success) {
                 Utils.alert(error?.message || data?.message || '发送失败', '发送失败');
             } else {
                 Utils.toast('发送成功', 2000, '✅');
@@ -493,7 +493,7 @@ const App = {
 
         try {
             const { data, error } = await API.grabPacket(packetId, Store.user.id, myName);
-            if (error || !data.success) {
+            if (error || !data || !data.success) {
                 Utils.alert(error?.message || data?.message || '抢红包失败');
                 // 刷新界面
                 const res = await API.getGroupDetails(Store.currentGroup.id);
@@ -522,7 +522,7 @@ const App = {
         
         try {
             const { data, error } = await API.deleteGroup(Store.currentGroup.id, Store.user.id);
-            if (error || !data.success) {
+            if (error || !data || !data.success) {
                 Utils.alert(error?.message || data?.message || '删除失败');
             } else {
                 Utils.toast('分组已解散', 2000, '👋');

@@ -1,6 +1,7 @@
 {
   "name": "hongbao",
   "compatibility_date": "2026-02-15",
+  "main": "worker.js",
   "assets": {
     "directory": "."
   }

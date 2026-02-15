@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>红包抽奖</title>
+    <style>
+        :root {
+            --primary: #00c853;
+            --primary-dark: #009624;
+            --primary-light: #69f0ae;
+            --bg-dark: #0a0a0a;
+            --bg-card: #141414;
+            --bg-card-hover: #1a1a1a;
+            --text-white: #ffffff;
+            --text-gray: #888888;
+            --border: #2a2a2a;
+            --shadow: rgba(0, 200, 83, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-white);
+            min-height: 100vh;
+        }
+
+        .header {
+            padding: 20px 30px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .send-btn {
+            background: var(--primary);
+            color: var(--bg-dark);
+            border: none;
+            padding: 10px 24px;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .send-btn:hover {
+            background: var(--primary-light);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px var(--shadow);
+        }
+
+        .main {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: calc(100vh - 80px);
+            padding: 20px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: 24px;
+            padding: 50px 40px;
+            max-width: 420px;
+            width: 100%;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: 50%;
+            margin: 0 auto 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: var(--text-gray);
+            font-size: 14px;
+            margin-bottom: 40px;
+        }
+
+        .empty-state {
+            padding: 60px 0;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            opacity: 0.6;
+        }
+
+        .empty-text {
+            font-size: 18px;
+            color: var(--text-gray);
+        }
+
+        .redpacket-display {
+            display: none;
+        }
+
+        .redpacket-display.active {
+            display: block;
+        }
+
+        .rp-info {
+            background: linear-gradient(135deg, #1a2e1a, #0d1f0d);
+            border-radius: 20px;
+            padding: 40px 30px;
+            margin-bottom: 30px;
+            border: 1px solid #2a3f2a;
+        }
+
+        .rp-amount {
+            font-size: 56px;
+            font-weight: 700;
+            color: var(--primary);
+            line-height: 1;
+        }
+
+        .rp-label {
+            font-size: 14px;
+            color: var(--text-gray);
+            margin-top: 8px;
+        }
+
+        .rp-remaining {
+            margin-top: 20px;
+            font-size: 15px;
+            color: var(--text-gray);
+        }
+
+        .rp-remaining span {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .grab-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: var(--bg-dark);
+            border: none;
+            padding: 18px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 20px 0;
+        }
+
+        .grab-btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px var(--shadow);
+        }
+
+        .grab-btn:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        .grabbing {
+            display: none;
+            padding: 30px;
+            color: var(--primary);
+            font-size: 18px;
+        }
+
+        .grabbing.active {
+            display: block;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .results {
+            margin-top: 30px;
+            text-align: left;
+        }
+
+        .result-item {
+            background: var(--bg-card-hover);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-item:first-child {
+            background: linear-gradient(135deg, #1a2e1a, #0d1f0d);
+            border: 1px solid #2a3f2a;
+        }
+
+        .result-item .name {
+            font-weight: 500;
+        }
+
+        .result-item .amount {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .result-item:first-child .amount {
+            color: #ffd700;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 25px;
+            padding: 20px;
+            background: var(--bg-card-hover);
+            border-radius: 16px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-gray);
+            margin-top: 4px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-card {
+            background: var(--bg-card);
+            border-radius: 24px;
+            padding: 40px;
+            width: 90%;
+            max-width: 380px;
+            border: 1px solid var(--border);
+        }
+
+        .modal-title {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-gray);
+            margin-bottom: 8px;
+            text-align: left;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 14px 18px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-white);
+            font-size: 15px;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 30px;
+        }
+
+        .modal-actions button {
+            flex: 1;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-cancel {
+            background: var(--bg-card-hover);
+            color: var(--text-gray);
+            border: 1px solid var(--border);
+        }
+
+        .btn-cancel:hover {
+            background: var(--border);
+        }
+
+        .btn-confirm {
+            background: var(--primary);
+            color: var(--bg-dark);
+            border: none;
+        }
+
+        .btn-confirm:hover {
+            background: var(--primary-light);
+        }
+
+        .msg-error {
+            color: #ff5252;
+            text-align: center;
+            font-size: 13px;
+            margin-top: 12px;
+            display: none;
+        }
+
+        .msg-error.show {
+            display: block;
+        }
+
+        .msg-success {
+            color: var(--primary);
+            text-align: center;
+            font-size: 13px;
+            margin-top: 12px;
+            display: none;
+        }
+
+        .msg-success.show {
+            display: block;
+        }
+
+        .user-list {
+            margin-top: 25px;
+            text-align: left;
+        }
+
+        .user-list-title {
+            font-size: 13px;
+            color: var(--text-gray);
+            margin-bottom: 12px;
+        }
+
+        .user-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: var(--bg-card-hover);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .user-item.drawn {
+            background: linear-gradient(135deg, #1a2e1a, #0d1f0d);
+            border: 1px solid #2a3f2a;
+        }
+
+        .user-item .amount {
+            color: var(--primary);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <button class="send-btn" onclick="showModal()">+ 发红包</button>
+    </div>
+
+    <div class="main">
+        <div class="card">
+            <div class="logo">🧧</div>
+            <h1>红包抽奖</h1>
+            <p class="subtitle">拼手气抢红包</p>
+
+            <div id="emptyState" class="empty-state">
+                <div class="empty-icon">📭</div>
+                <p class="empty-text">暂无红包</p>
+            </div>
+
+            <div id="redpacketDisplay" class="redpacket-display">
+                <div class="rp-info">
+                    <div class="rp-amount">¥100</div>
+                    <div class="rp-label">红包金额</div>
+                    <div class="rp-remaining">剩余 <span id="remaining">6</span> 人</div>
+                </div>
+
+                <button id="grabBtn" class="grab-btn" onclick="grab()">立即抢购</button>
+                <div id="grabbing" class="grabbing">正在抢购...</div>
+
+                <div id="results" class="results"></div>
+
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-value">100</div>
+                        <div class="stat-label">总金额(元)</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="drawnCount">0</div>
+                        <div class="stat-label">已抽取</div>
+                    </div>
+                </div>
+
+                <div class="user-list" id="userList"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal" class="modal">
+        <div class="modal-card">
+            <h2 class="modal-title">发红包</h2>
+            <div class="input-group">
+                <label>用户名</label>
+                <input type="text" id="username" placeholder="请输入管理员用户名">
+            </div>
+            <div class="input-group">
+                <label>密码</label>
+                <input type="password" id="password" placeholder="请输入管理员密码">
+            </div>
+            <div id="errorMsg" class="msg-error">用户名或密码错误</div>
+            <div id="successMsg" class="msg-success">红包发送成功！</div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal()">取消</button>
+                <button class="btn-confirm" onclick="send()">发送</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const TOTAL_AMOUNT = 100;
+        const FIRST_AMOUNT = 32.8;
+        const MIN_AMOUNT = 8.88;
+        const TOTAL_COUNT = 6;
+        const ADMIN_USER = 'admin';
+        const ADMIN_PASS = '123456';
+
+        let data = null;
+        let grabbing = false;
+        let hasGrabbed = false;
+
+        function init() {
+            const saved = localStorage.getItem('redpacket');
+            if (saved) {
+                data = JSON.parse(saved);
+                if (data.remaining <= 0) {
+                    data = null;
+                    localStorage.removeItem('redpacket');
+                }
+            }
+            render();
+        }
+
+        function render() {
+            const emptyEl = document.getElementById('emptyState');
+            const displayEl = document.getElementById('redpacketDisplay');
+            const grabBtn = document.getElementById('grabBtn');
+
+            if (!data) {
+                emptyEl.style.display = 'block';
+                displayEl.classList.remove('active');
+                return;
+            }
+
+            emptyEl.style.display = 'none';
+            displayEl.classList.add('active');
+            document.getElementById('remaining').textContent = data.remaining;
+            document.getElementById('drawnCount').textContent = data.drawn.length;
+
+            if (data.remaining <= 0 || hasGrabbed) {
+                grabBtn.disabled = true;
+                grabBtn.textContent = hasGrabbed ? '您已抽取' : '已抢完';
+            } else {
+                grabBtn.disabled = false;
+                grabBtn.textContent = '立即抢购';
+            }
+
+            renderResults();
+            renderUserList();
+        }
+
+        function renderResults() {
+            const resultsEl = document.getElementById('results');
+            resultsEl.innerHTML = '';
+            data.participants.filter(p => p.drawn).forEach(p => {
+                const item = document.createElement('div');
+                item.className = 'result-item';
+                item.innerHTML = `
+                    <span class="name">${p.name}</span>
+                    <span class="amount">¥${p.amount.toFixed(2)}</span>
+                `;
+                resultsEl.appendChild(item);
+            });
+        }
+
+        function renderUserList() {
+            const listEl = document.getElementById('userList');
+            listEl.innerHTML = '<div class="user-list-title">参与用户</div>';
+            data.participants.forEach(p => {
+                const item = document.createElement('div');
+                item.className = `user-item ${p.drawn ? 'drawn' : ''}`;
+                item.innerHTML = `
+                    <span>${p.name}</span>
+                    <span class="amount">${p.amount ? '¥' + p.amount.toFixed(2) : '待抽取'}</span>
+                `;
+                listEl.appendChild(item);
+            });
+        }
+
+        function showModal() {
+            document.getElementById('modal').classList.add('active');
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('errorMsg').classList.remove('show');
+            document.getElementById('successMsg').classList.remove('show');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+        }
+
+        function send() {
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+            const errorEl = document.getElementById('errorMsg');
+            const successEl = document.getElementById('successMsg');
+
+            if (user !== ADMIN_USER || pass !== ADMIN_PASS) {
+                errorEl.classList.add('show');
+                successEl.classList.remove('show');
+                return;
+            }
+
+            data = {
+                total: TOTAL_AMOUNT,
+                remaining: TOTAL_COUNT,
+                drawn: [],
+                first: true,
+                participants: []
+            };
+
+            for (let i = 1; i <= TOTAL_COUNT; i++) {
+                data.participants.push({ id: i, name: `用户${i}`, amount: null, drawn: false });
+            }
+
+            localStorage.setItem('redpacket', JSON.stringify(data));
+            hasGrabbed = false;
+
+            errorEl.classList.remove('show');
+            successEl.classList.add('show');
+
+            setTimeout(() => {
+                closeModal();
+                render();
+            }, 1000);
+        }
+
+        function calcAmounts(remain, count) {
+            if (count === 1) return [Math.round(remain * 100) / 100];
+            const minTotal = MIN_AMOUNT * count;
+            if (remain < minTotal) {
+                const arr = Array(count - 1).fill(MIN_AMOUNT);
+                arr.push(Math.round((remain - minTotal + MIN_AMOUNT) * 100) / 100);
+                return arr;
+            }
+            const arr = [];
+            let r = remain;
+            for (let i = 0; i < count - 1; i++) {
+                const max = r - MIN_AMOUNT * (count - i - 1);
+                const v = Math.round((Math.random() * (max - MIN_AMOUNT) + MIN_AMOUNT) * 100) / 100;
+                arr.push(v);
+                r -= v;
+            }
+            arr.push(Math.round(r * 100) / 100);
+            return arr;
+        }
+
+        function grab() {
+            if (grabbing || !data || data.remaining <= 0 || hasGrabbed) return;
+
+            grabbing = true;
+            hasGrabbed = true;
+            document.getElementById('grabBtn').style.display = 'none';
+            document.getElementById('grabbing').classList.add('active');
+
+            setTimeout(() => {
+                const avail = data.participants.filter(p => !p.drawn);
+                if (avail.length === 0) {
+                    alert('红包已抢完！');
+                    grabbing = false;
+                    return;
+                }
+
+                const remain = data.total - data.drawn.reduce((a, b) => a + b, 0);
+                let amount;
+
+                if (data.first) {
+                    amount = FIRST_AMOUNT;
+                    data.first = false;
+                } else {
+                    const amounts = calcAmounts(remain, avail.length);
+                    amount = amounts[Math.floor(Math.random() * amounts.length)];
+                }
+
+                const participant = avail[Math.floor(Math.random() * avail.length)];
+                participant.amount = amount;
+                participant.drawn = true;
+                data.drawn.push(amount);
+                data.remaining--;
+
+                localStorage.setItem('redpacket', JSON.stringify(data));
+
+                document.getElementById('grabbing').classList.remove('active');
+                document.getElementById('grabBtn').style.display = 'block';
+                grabbing = false;
+
+                alert(`恭喜！您抢到了 ¥${amount.toFixed(2)} 元红包！`);
+
+                render();
+            }, 1000);
+        }
+
+        document.getElementById('password').addEventListener('keypress', e => {
+            if (e.key === 'Enter') send();
+        });
+
+        init();
+    </script>
+</body>
+</html>

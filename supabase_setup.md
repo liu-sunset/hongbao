@@ -36,8 +36,15 @@ create policy "Allow all access" on redpackets for all using (true) with check (
 2. 选择 **API** 选项卡。
 3. 找到 **Project URL** 和 **anon public key**。
 
-## 4. 在网页中配置
-1. 打开部署好的红包网页。
-2. 点击右上角的 **"+ 发红包"** 按钮。
-3. 在弹出的配置框中填入上一步获取的 **Supabase URL** 和 **Supabase Key**。
-4. 输入管理员账号密码（默认：`admin` / `123456`），即可发送第一个同步红包。
+## 4. 在代码中配置
+1. 打开 `index.html` 文件。
+2. 找到 `<script>` 标签开头的配置部分：
+   ```javascript
+   // Supabase 配置 (在此填写您的 URL 和 Key)
+   const SUPABASE_URL = '您的_SUPABASE_URL';
+   const SUPABASE_KEY = '您的_SUPABASE_ANON_KEY';
+   ```
+3. 将 `您的_SUPABASE_URL` 替换为 **Project URL**。
+4. 将 `您的_SUPABASE_ANON_KEY` 替换为 **anon public key**。
+5. 保存文件并部署。
+

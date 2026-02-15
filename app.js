@@ -1,6 +1,6 @@
 // 配置
 const CONFIG = {
-    SUPABASE_URL: 'https://amlypzgchsujfxzmizif.supabase.co',
+    SUPABASE_URL: window.location.origin + '/supabase',
     SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFtbHlwemdjaHN1amZ4em1pemlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExMjA0NDYsImV4cCI6MjA4NjY5NjQ0Nn0.Nl-1B0sdNKw9IOWniiwHArwvO6PyIUaCQPSzZdNNn14'
 };
 

@@ -443,6 +443,100 @@
             color: var(--primary);
             font-weight: 600;
         }
+
+        /* 红包结果弹窗美化 */
+        .result-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(8px);
+        }
+
+        .result-modal.active {
+            display: flex;
+        }
+
+        .result-card {
+            background: linear-gradient(135deg, #ff4b2b, #ff416c);
+            width: 300px;
+            padding: 40px 20px;
+            border-radius: 24px;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(255, 75, 43, 0.3);
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            color: #fff;
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0.5); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .result-card .crown {
+            font-size: 48px;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .result-card h3 {
+            font-size: 18px;
+            margin-bottom: 20px;
+            opacity: 0.9;
+        }
+
+        .result-card .amount-display {
+            font-size: 48px;
+            font-weight: 800;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .result-card .amount-display small {
+            font-size: 18px;
+            font-weight: 400;
+            margin-right: 4px;
+        }
+
+        .result-card .close-result-btn {
+            margin-top: 30px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 12px 40px;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .result-card .close-result-btn:hover {
+            background: white;
+            color: #ff4b2b;
+        }
+
+        /* 简单的彩带粒子动画 */
+        .confetti {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #ffd700;
+            border-radius: 50%;
+            animation: fall 3s infinite;
+        }
+
+        @keyframes fall {
+            0% { transform: translateY(-50px) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(300px) rotate(360deg); opacity: 0; }
+        }
     </style>
 </head>
 <body>
@@ -509,6 +603,15 @@
                 <button class="btn-cancel" onclick="closeModal()">取消</button>
                 <button class="btn-confirm" onclick="send()">发送</button>
             </div>
+        </div>
+    </div>
+
+    <div id="resultModal" class="result-modal">
+        <div class="result-card">
+            <span class="crown">🎉</span>
+            <h3>恭喜获得红包</h3>
+            <div class="amount-display"><small>¥</small><span id="resultAmount">0.00</span></div>
+            <button class="close-result-btn" onclick="closeResult()">太棒了</button>
         </div>
     </div>
 
@@ -658,6 +761,29 @@
             if (modal) modal.classList.remove('active');
         }
 
+        function showResult(amount) {
+            const modal = document.getElementById('resultModal');
+            const amountEl = document.getElementById('resultAmount');
+            if (amountEl) amountEl.textContent = amount.toFixed(2);
+            if (modal) modal.classList.add('active');
+            
+            // 添加简单的彩带
+            for (let i = 0; i < 15; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + '%';
+                confetti.style.backgroundColor = ['#ffd700', '#ffffff', '#ffeb3b'][Math.floor(Math.random() * 3)];
+                confetti.style.animationDelay = Math.random() * 2 + 's';
+                modal.appendChild(confetti);
+                setTimeout(() => confetti.remove(), 3000);
+            }
+        }
+
+        function closeResult() {
+            const modal = document.getElementById('resultModal');
+            if (modal) modal.classList.remove('active');
+        }
+
         function send() {
             const user = document.getElementById('username').value;
             const pass = document.getElementById('password').value;
@@ -776,7 +902,7 @@
                     if (btn) btn.style.display = 'block';
                     grabbing = false;
 
-                    alert(`恭喜！您抢到了 ¥${amount.toFixed(2)} 元红包！`);
+                    showResult(amount);
 
                     render();
                 } catch (e) {

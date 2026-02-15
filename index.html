@@ -661,13 +661,21 @@
                 const savedData = storage.get('redpacket');
                 if (savedData) {
                     data = savedData;
+                    // 检查当前用户是否已经抢过
+                    hasGrabbed = storage.get('hasGrabbed') === true;
+                    
                     // 简单的结构校验
                     if (!data.participants || !Array.isArray(data.participants)) {
                         data = null;
                         storage.remove('redpacket');
+                        storage.remove('hasGrabbed');
+                        hasGrabbed = false;
                     } else if (data.remaining <= 0) {
                         data = null;
                         storage.remove('redpacket');
+                        // 即使红包领完了，如果没新红包，状态也重置
+                        storage.remove('hasGrabbed');
+                        hasGrabbed = false;
                     }
                 }
                 render();
@@ -809,6 +817,7 @@
             }
 
             storage.set('redpacket', data);
+            storage.remove('hasGrabbed');
             hasGrabbed = false;
 
             errorEl.classList.remove('show');
@@ -897,6 +906,7 @@
                     data.remaining--;
 
                     storage.set('redpacket', data);
+                    storage.set('hasGrabbed', true);
 
                     if (grabbingEl) grabbingEl.classList.remove('active');
                     if (btn) btn.style.display = 'block';

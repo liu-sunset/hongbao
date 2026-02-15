@@ -7,6 +7,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="format-detection" content="telephone=no">
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <title>红包抽奖</title>
     <style>
         :root {
@@ -589,6 +591,19 @@
     <div id="modal" class="modal">
         <div class="modal-card">
             <h2 class="modal-title">发红包</h2>
+            <!-- Supabase 配置区域 (仅管理员可见) -->
+            <div id="dbConfig" style="margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 20px;">
+                <p style="font-size: 12px; color: var(--text-gray); margin-bottom: 10px;">数据库配置 (首次使用需填写)</p>
+                <div class="input-group">
+                    <label>Supabase URL</label>
+                    <input type="text" id="supaUrl" placeholder="https://xxx.supabase.co">
+                </div>
+                <div class="input-group">
+                    <label>Supabase Key</label>
+                    <input type="password" id="supaKey" placeholder="public-anon-key">
+                </div>
+            </div>
+
             <div class="input-group">
                 <label>用户名</label>
                 <input type="text" id="username" placeholder="请输入管理员用户名">
@@ -623,31 +638,26 @@
         const ADMIN_USER = 'admin';
         const ADMIN_PASS = '123456';
 
+        let supabase = null;
         let data = null;
         let grabbing = false;
         let hasGrabbed = false;
+        let realtimeChannel = null;
 
-        // 安全的 localStorage 封装，适配 Safari 隐私模式
+        // 安全的 localStorage 封装
         const storage = {
             get(key) {
                 try {
                     const val = localStorage.getItem(key);
                     return val ? JSON.parse(val) : null;
                 } catch (e) {
-                    console.error('Storage read error:', e);
                     return null;
                 }
             },
             set(key, val) {
                 try {
                     localStorage.setItem(key, JSON.stringify(val));
-                } catch (e) {
-                    console.error('Storage write error:', e);
-                    // 在 Safari 隐私模式下，setItem 可能抛出 QuotaExceededError
-                    if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-                        alert('无法保存数据，请关闭隐私模式以获得完整体验。');
-                    }
-                }
+                } catch (e) {}
             },
             remove(key) {
                 try {
@@ -656,32 +666,99 @@
             }
         };
 
-        function init() {
-            try {
-                const savedData = storage.get('redpacket');
-                if (savedData) {
-                    data = savedData;
-                    // 检查当前用户是否已经抢过
-                    hasGrabbed = storage.get('hasGrabbed') === true;
+        // 初始化 Supabase
+        function initSupabase() {
+            const url = storage.get('supaUrl');
+            const key = storage.get('supaKey');
+            
+            if (url && key && window.supabase) {
+                try {
+                    supabase = window.supabase.createClient(url, key);
+                    document.getElementById('supaUrl').value = url;
+                    document.getElementById('supaKey').value = key;
                     
-                    // 简单的结构校验
-                    if (!data.participants || !Array.isArray(data.participants)) {
-                        data = null;
-                        storage.remove('redpacket');
-                        storage.remove('hasGrabbed');
-                        hasGrabbed = false;
-                    } else if (data.remaining <= 0) {
-                        data = null;
-                        storage.remove('redpacket');
-                        // 即使红包领完了，如果没新红包，状态也重置
-                        storage.remove('hasGrabbed');
-                        hasGrabbed = false;
-                    }
+                    // 订阅实时变化
+                    subscribeRealtime();
+                    // 拉取最新数据
+                    fetchLatestData();
+                } catch (e) {
+                    console.error('Supabase init failed:', e);
                 }
-                render();
-            } catch (e) {
-                console.error('Init error:', e);
             }
+        }
+
+        // 订阅实时更新
+        function subscribeRealtime() {
+            if (!supabase || realtimeChannel) return;
+
+            realtimeChannel = supabase
+                .channel('public:redpackets')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'redpackets' }, payload => {
+                    console.log('Change received!', payload);
+                    if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+                        // 如果是新的或更新的，检查是否比当前数据新
+                        const newData = payload.new;
+                        // 简单起见，直接重新拉取最新的一条，确保逻辑一致
+                        fetchLatestData();
+                    }
+                })
+                .subscribe();
+        }
+
+        async function fetchLatestData() {
+            if (!supabase) return;
+            
+            try {
+                const { data: packets, error } = await supabase
+                    .from('redpackets')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+
+                if (error) throw error;
+
+                if (packets && packets.length > 0) {
+                    const packet = packets[0];
+                    // 转换数据库格式到前端格式
+                    data = {
+                        id: packet.id, // 数据库 ID
+                        total: packet.total_amount,
+                        remaining: packet.remaining_count,
+                        drawn: [], // 需要从 participants 计算
+                        first: packet.is_first, // 需要数据库加这个字段或前端逻辑判断
+                        participants: packet.participants || [],
+                        updated_at: packet.updated_at
+                    };
+
+                    // 计算已抽取的金额列表
+                    data.drawn = data.participants.filter(p => p.drawn).map(p => p.amount);
+
+                    // 检查当前用户是否已抢
+                    // 这里简单用 localStorage 记录，实际应该用设备指纹或用户 ID
+                    // 为了兼容旧逻辑，我们还是依赖 localStorage 的 hasGrabbed
+                    // 但如果数据库换了（新红包），本地记录应该失效
+                    const lastPacketId = storage.get('lastPacketId');
+                    if (lastPacketId !== data.id) {
+                        storage.remove('hasGrabbed');
+                        hasGrabbed = false;
+                        storage.set('lastPacketId', data.id);
+                    } else {
+                        hasGrabbed = storage.get('hasGrabbed') === true;
+                    }
+
+                    render();
+                } else {
+                    data = null;
+                    render();
+                }
+            } catch (e) {
+                console.error('Fetch error:', e);
+            }
+        }
+
+        function init() {
+            initSupabase();
+            render();
         }
 
         function render() {
@@ -689,8 +766,21 @@
             const displayEl = document.getElementById('redpacketDisplay');
             const grabBtn = document.getElementById('grabBtn');
 
+            if (!supabase) {
+                // 未配置数据库时显示提示
+                if (emptyEl) {
+                    emptyEl.style.display = 'block';
+                    emptyEl.querySelector('.empty-text').textContent = '请管理员配置数据库';
+                }
+                if (displayEl) displayEl.classList.remove('active');
+                return;
+            }
+
             if (!data) {
-                if (emptyEl) emptyEl.style.display = 'block';
+                if (emptyEl) {
+                    emptyEl.style.display = 'block';
+                    emptyEl.querySelector('.empty-text').textContent = '暂无红包';
+                }
                 if (displayEl) displayEl.classList.remove('active');
                 return;
             }
@@ -792,41 +882,93 @@
             if (modal) modal.classList.remove('active');
         }
 
-        function send() {
+        async function send() {
             const user = document.getElementById('username').value;
             const pass = document.getElementById('password').value;
+            const supaUrl = document.getElementById('supaUrl').value;
+            const supaKey = document.getElementById('supaKey').value;
             const errorEl = document.getElementById('errorMsg');
             const successEl = document.getElementById('successMsg');
 
             if (user !== ADMIN_USER || pass !== ADMIN_PASS) {
+                errorEl.textContent = '用户名或密码错误';
                 errorEl.classList.add('show');
                 successEl.classList.remove('show');
                 return;
             }
 
-            data = {
-                total: TOTAL_AMOUNT,
-                remaining: TOTAL_COUNT,
-                drawn: [],
-                first: true,
-                participants: []
-            };
-
-            for (let i = 1; i <= TOTAL_COUNT; i++) {
-                data.participants.push({ id: i, name: `用户${i}`, amount: null, drawn: false });
+            if (!supaUrl || !supaKey) {
+                errorEl.textContent = '请配置 Supabase URL 和 Key';
+                errorEl.classList.add('show');
+                return;
             }
 
-            storage.set('redpacket', data);
-            storage.remove('hasGrabbed');
-            hasGrabbed = false;
+            // 保存配置
+            storage.set('supaUrl', supaUrl);
+            storage.set('supaKey', supaKey);
 
-            errorEl.classList.remove('show');
-            successEl.classList.add('show');
+            // 如果还没初始化，先初始化
+            if (!supabase) {
+                initSupabase();
+                // 等待一下初始化
+                await new Promise(r => setTimeout(r, 500));
+            }
+            
+            if (!supabase) {
+                errorEl.textContent = '数据库连接失败，请检查配置';
+                errorEl.classList.add('show');
+                return;
+            }
 
-            setTimeout(() => {
-                closeModal();
-                render();
-            }, 1000);
+            // 检查当前是否有未抢完的红包
+            try {
+                // 先拉取最新的
+                await fetchLatestData();
+                
+                if (data && data.remaining > 0) {
+                    errorEl.textContent = '当前红包尚未抢完，无法发送新红包';
+                    errorEl.classList.add('show');
+                    return;
+                }
+
+                // 准备新红包数据
+                const participants = [];
+                for (let i = 1; i <= TOTAL_COUNT; i++) {
+                    participants.push({ id: i, name: `用户${i}`, amount: null, drawn: false });
+                }
+
+                const newPacket = {
+                    total_amount: TOTAL_AMOUNT,
+                    remaining_count: TOTAL_COUNT,
+                    participants: participants,
+                    is_first: true,
+                    is_active: true
+                };
+
+                const { error } = await supabase
+                    .from('redpackets')
+                    .insert(newPacket);
+
+                if (error) throw error;
+
+                // 本地清理旧状态
+                storage.remove('hasGrabbed');
+                hasGrabbed = false;
+
+                errorEl.classList.remove('show');
+                successEl.classList.add('show');
+
+                setTimeout(() => {
+                    closeModal();
+                    // fetchLatestData 会通过 Realtime 触发，或者手动触发
+                    fetchLatestData();
+                }, 1000);
+
+            } catch (e) {
+                console.error('Send error:', e);
+                errorEl.textContent = '发送失败: ' + e.message;
+                errorEl.classList.add('show');
+            }
         }
 
         function calcAmounts(remain, count) {
@@ -857,11 +999,14 @@
             return arr;
         }
 
-        function grab() {
+        async function grab() {
             if (grabbing || !data || data.remaining <= 0 || hasGrabbed) return;
+            if (!supabase) {
+                alert('数据库未连接');
+                return;
+            }
 
             grabbing = true;
-            hasGrabbed = true;
             
             const btn = document.getElementById('grabBtn');
             const grabbingEl = document.getElementById('grabbing');
@@ -869,60 +1014,103 @@
             if (btn) btn.style.display = 'none';
             if (grabbingEl) grabbingEl.classList.add('active');
 
-            setTimeout(() => {
-                try {
-                    const avail = data.participants.filter(p => !p.drawn);
+            try {
+                // 乐观锁重试机制
+                let retryCount = 0;
+                const maxRetries = 5;
+                let success = false;
+                let finalAmount = 0;
+
+                while (retryCount < maxRetries && !success) {
+                    // 1. 获取最新数据
+                    const { data: latestPacket, error: fetchError } = await supabase
+                        .from('redpackets')
+                        .select('*')
+                        .eq('id', data.id)
+                        .single();
+                    
+                    if (fetchError || !latestPacket) throw new Error('Fetch failed');
+
+                    // 2. 检查是否还有剩余
+                    if (latestPacket.remaining_count <= 0) {
+                        alert('红包已抢完！');
+                        break;
+                    }
+
+                    // 3. 计算金额
+                    const avail = latestPacket.participants.filter(p => !p.drawn);
                     if (avail.length === 0) {
                         alert('红包已抢完！');
-                        grabbing = false;
-                        render(); // 恢复界面
-                        return;
+                        break;
                     }
 
-                    const remain = data.total - data.drawn.reduce((a, b) => a + b, 0);
+                    const remainAmount = latestPacket.total_amount - latestPacket.participants.reduce((sum, p) => sum + (p.amount || 0), 0);
                     let amount;
 
-                    if (data.first) {
+                    if (latestPacket.is_first) {
                         amount = FIRST_AMOUNT;
-                        data.first = false;
                     } else {
-                        const amounts = calcAmounts(remain, avail.length);
+                        const amounts = calcAmounts(remainAmount, avail.length);
                         if (amounts && amounts.length > 0) {
-                             amount = amounts[Math.floor(Math.random() * amounts.length)];
+                            amount = amounts[Math.floor(Math.random() * amounts.length)];
                         } else {
-                             amount = MIN_AMOUNT; // 兜底
+                            amount = MIN_AMOUNT;
                         }
                     }
+                    
+                    // 确保 amount 是数字
+                    amount = Number(amount) || MIN_AMOUNT;
 
-                    // 再次检查 amount 是否有效
-                    if (typeof amount !== 'number' || isNaN(amount)) {
-                        amount = MIN_AMOUNT;
+                    // 4. 更新本地结构
+                    const targetParticipant = avail[Math.floor(Math.random() * avail.length)];
+                    targetParticipant.amount = amount;
+                    targetParticipant.drawn = true;
+                    
+                    // 5. 尝试更新数据库 (带乐观锁条件: updated_at)
+                    const { error: updateError } = await supabase
+                        .from('redpackets')
+                        .update({
+                            remaining_count: latestPacket.remaining_count - 1,
+                            participants: latestPacket.participants,
+                            is_first: false, // 只要有人抢了，就不再是第一次
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', data.id)
+                        .eq('updated_at', latestPacket.updated_at); // 乐观锁关键
+
+                    if (!updateError) {
+                        success = true;
+                        finalAmount = amount;
+                        // 更新成功，更新本地状态
+                        hasGrabbed = true;
+                        storage.set('hasGrabbed', true);
+                        storage.set('lastPacketId', data.id);
+                        
+                        // 强制刷新一次界面
+                        await fetchLatestData();
+                    } else {
+                        // 更新失败（并发冲突），重试
+                        console.log('Concurrency conflict, retrying...', retryCount);
+                        retryCount++;
+                        await new Promise(r => setTimeout(r, Math.random() * 200 + 100)); // 随机避让
                     }
-
-                    const participant = avail[Math.floor(Math.random() * avail.length)];
-                    participant.amount = amount;
-                    participant.drawn = true;
-                    data.drawn.push(amount);
-                    data.remaining--;
-
-                    storage.set('redpacket', data);
-                    storage.set('hasGrabbed', true);
-
-                    if (grabbingEl) grabbingEl.classList.remove('active');
-                    if (btn) btn.style.display = 'block';
-                    grabbing = false;
-
-                    showResult(amount);
-
-                    render();
-                } catch (e) {
-                    console.error('Grab error:', e);
-                    alert('抢红包出错，请重试');
-                    grabbing = false;
-                    if (btn) btn.style.display = 'block';
-                    if (grabbingEl) grabbingEl.classList.remove('active');
                 }
-            }, 1000);
+
+                if (success) {
+                    showResult(finalAmount);
+                } else if (retryCount >= maxRetries) {
+                    alert('抢红包人数过多，请重试！');
+                }
+
+            } catch (e) {
+                console.error('Grab error:', e);
+                alert('抢红包出错，请重试');
+            } finally {
+                grabbing = false;
+                if (btn) btn.style.display = 'block';
+                if (grabbingEl) grabbingEl.classList.remove('active');
+                render();
+            }
         }
 
         document.getElementById('password').addEventListener('keypress', e => {
